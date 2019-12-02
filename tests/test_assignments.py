@@ -27,7 +27,7 @@ def test_simple_dict():
 
     output_df = ns.Plate(data=df, assign_wells=assignments).df
 
-    pass # assert output_df.equals(desired_df)
+    assert output_df.equals(desired_df)
 
 # Dicts with regex-like wells
 def test_regex_dict():
@@ -50,4 +50,4 @@ def test_regex_dict():
 
     output_df = ns.Plate(data=df, assign_wells=assignments).df
 
-    pass # assert output_df.equals(desired_df)
+    assert output_df.equals(desired_df)

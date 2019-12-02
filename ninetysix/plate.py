@@ -6,6 +6,8 @@ from .parsers import well_regex
 
 
 class Plate():
+    """Need a comprehensive docstring here.
+    """
 
     def __init__(
         self,
@@ -27,6 +29,8 @@ class Plate():
         if self._passed:
             self.df = self._make_df()
 
+        self._well_name = self._get_well_name()
+
         if assign_wells is not None:
             self.assignments = assign_wells
             self._assignment_pass = check_assignments(self)
@@ -37,11 +41,24 @@ class Plate():
 
     @property
     def value_name(self):
+        """Sets value name from 'value_name', 'values', or sets to 'value'."""
         if (self._value_name is None) & (type(self.values) == str):
             self._value_name = self.values
+        elif self._value_name is None:
+            self._value_name = 'value'
         return self._value_name
+
+    def _move_values(self, df=None):
+        """Moves values to -1 index"""
+        if df is None:
+            df = self.df
+        values = df[self.value_name]
+        del df[self.value_name]
+        df[self.value_name] = values
+        return df
     
     def _make_df(self):
+        """Given passing inputs, sets up the initial DataFrame."""
         if type(self.data) == type(pd.DataFrame()):
             df = self.data
         elif type(self.data) == dict:
@@ -59,22 +76,35 @@ class Plate():
         if self.value_name is None:
             self._value_name = df.columns[-1]
         else:
-            values = df[self.value_name]
-            del df[self.value_name]
-            df[self.value_name] = values
+            df = self._move_values(df)
 
         return df
 
-    def assign_wells(self):
-        """Takes either a dictionary or standardized excel spreadsheet
-        (see ninetysix/templates) to assign new columns in the output
-        DataFrame that provide addition information about the contents
-        or conditions of each well in the Plate.
-        """
-        assignment_type = type(self.assignments)
-        if assignment_type == dict:
+    def _get_well_name(self):
+        """After self._passing is True, grabs the singular 'well' column."""
+        well_cols = [col for col in self.df.columns if col.lower() == 'well']
+        return well_cols[0]
 
-            for column in self.assignments.keys():
-                working_assignments = self.assignments[column]
-        pass
+    def assign_wells(self, assignments=None):
+        """Takes either a nested dictionary or standardized excel
+        spreadsheet (see ninetysix/templates) to assign new columns
+        in the output DataFrame that provide addition information 
+        about the contents or conditions of each well in the Plate.
+        """
+        if assignments is None:
+            assignments = self.assignments
+
+        assignment_type = type(assignments)
+        if assignment_type == dict:
+            # Unpack dictionary
+            assignments = well_regex(assignments)
+
+            # Make new columns
+            for column in assignments.keys():
+                wells = self.df[self._well_name]
+                self.df[column] = wells.map(assignments[column].get)
+
+        self._move_values()
+
+        return self
 
