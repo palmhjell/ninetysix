@@ -8,145 +8,146 @@ import pytest
 
 # General set up
 def test_value_name():
-	df = pd.DataFrame({
-		'well': ['A1'],
-		'test': [1],
-	})
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'test': [1],
+    })
 
-	value_name = ns.Plate(data=df, value_name='test').value_name
-	assert value_name == 'test'
+    value_name = ns.Plate(data=df, value_name='test').value_name
+    assert value_name == 'test'
 
 def test_values_to_value_name():
-	df = pd.DataFrame({
-		'well': ['A1'],
-		'test': [1],
-	})
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'test': [1],
+    })
 
-	value_name = ns.Plate(data=df, values='test').value_name
-	assert value_name == 'test'
+    value_name = ns.Plate(data=df, values='test').value_name
+    assert value_name == 'test'
 
 def test_nonstring_value():
-	df = pd.DataFrame({
-		'well': ['A1'],
-		'test': [1],
-	})
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'test': [1],
+    })
 
-	with pytest.raises(TypeError):
-		ns.Plate(data=df, values=4)
+    with pytest.raises(TypeError):
+        ns.Plate(data=df, values=4)
 
 
 # Well-value pair inputs
 def test_two_lists():
-	wells = ['A1', 'A2']
-	values = [1, 2]
+    wells = ['A1', 'A2']
+    values = [1, 2]
 
-	assert ns.Plate(wells=wells, values=values)._passed
+    assert ns.Plate(wells=wells, values=values)._passed
 
 def test_nonstring_well():
-	wells = ['A1', 2]
-	values = [1, 2]
+    wells = ['A1', 2]
+    values = [1, 2]
 
-	with pytest.raises(TypeError):
-		ns.Plate(wells=wells, values=values)
+    with pytest.raises(TypeError):
+        ns.Plate(wells=wells, values=values)
 
 def test_tuple_of_tuples():
-	wells = ('A1', 'A2')
-	values = (1, 2)
-	data = zip(wells, values)
+    wells = ('A1', 'A2')
+    values = (1, 2)
+    data = zip(wells, values)
 
-	assert ns.Plate(data=data)._passed
+    assert ns.Plate(data=data)._passed
 
 def test_tuple_of_tuples_with_name():
-	wells = ('A1', 'A2')
-	values = (1, 2)
+    wells = ('A1', 'A2')
+    values = (1, 2)
 
-	assert ns.Plate(data=zip(wells, values), values='test')._passed
-	assert ns.Plate(data=zip(wells, values), value_name='test')._passed
+    assert ns.Plate(data=zip(wells, values), values='test')._passed
+    assert ns.Plate(data=zip(wells, values), value_name='test')._passed
 
-	output_df = ns.Plate(data=zip(wells, values), value_name='test').df
-	desired_df = df = pd.DataFrame({
-		'well': ['A1', 'A2'],
-		'test': [1, 2],
-	})
+    output_df = ns.Plate(data=zip(wells, values), value_name='test').df
+    desired_df = df = pd.DataFrame({
+        'well': ['A1', 'A2'],
+        'test': [1, 2],
+    })
 
-	assert output_df.equals(desired_df)
+    assert output_df.equals(desired_df)
 
 def test_tuple_of_tuples_with_value_list():
-	wells = ('A1', 'A2')
-	values = (1, 2)
-	data = zip(wells, values)
+    wells = ('A1', 'A2')
+    values = (1, 2)
+    data = zip(wells, values)
 
-	with pytest.raises(TypeError):
-		ns.Plate(data=data, values=values)
+    with pytest.raises(TypeError):
+        ns.Plate(data=data, values=values)
 
 
 # DataFrame/dict inputs
 def test_simple_df():
-	df = pd.DataFrame({
-		'well': ['A1'],
-		'value': [1],
-	})
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'value': [1],
+    })
 
-	assert ns.Plate(data=df)._passed
+    assert ns.Plate(data=df)._passed
 
 def test_simple_dict():
-	data = {
-		'well': ['A1'],
-		'value': [1],
-	}
+    data = {
+        'well': ['A1'],
+        'value': [1],
+    }
 
-	assert ns.Plate(data=data)._passed
+    assert ns.Plate(data=data)._passed
+    assert ns.Plate(data=data).value_name == 'value'
 
 def test_df_no_well():
-	df = pd.DataFrame({
-		'while': ['A1'],
-		'value': [1],
-	})
+    df = pd.DataFrame({
+        'while': ['A1'],
+        'value': [1],
+    })
 
-	with pytest.raises(ValueError):
-		ns.Plate(data=df)
+    with pytest.raises(ValueError):
+        ns.Plate(data=df)
 
 def test_df_too_many_well():
-	df = pd.DataFrame({
-		'well': ['A1'],
-		'Well': ['A2'],
-		'value': [1],
-	})
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'Well': ['A2'],
+        'value': [1],
+    })
 
-	with pytest.raises(ValueError):
-		ns.Plate(data=df)
+    with pytest.raises(ValueError):
+        ns.Plate(data=df)
 
 def test_df_nonstring_well():
-	df = pd.DataFrame({
-		'well': ['A1', 2],
-		'value': [1, 2],
-	})
+    df = pd.DataFrame({
+        'well': ['A1', 2],
+        'value': [1, 2],
+    })
 
-	with pytest.raises(TypeError):
-		ns.Plate(data=df)
+    with pytest.raises(TypeError):
+        ns.Plate(data=df)
 
 def test_df_with_value():
-	df = pd.DataFrame({
-		'well': ['A1'],
-		'RT': [0.4],
-		'area': [1],
-	})
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'RT': [0.4],
+        'area': [1],
+    })
 
-	ns.Plate(data=df, values='area')
+    ns.Plate(data=df, values='area')
 
 def test_df_move_value():
-	input_df = pd.DataFrame({
-		'well': ['A1'],
-		'area': [1],
-		'RT': [0.4],
-	})
+    input_df = pd.DataFrame({
+        'well': ['A1'],
+        'area': [1],
+        'RT': [0.4],
+    })
 
-	desired_df = pd.DataFrame({
-		'well': ['A1'],
-		'RT': [0.4],
-		'area': [1],
-	})
+    desired_df = pd.DataFrame({
+        'well': ['A1'],
+        'RT': [0.4],
+        'area': [1],
+    })
 
-	output_df = ns.Plate(data=input_df, values='area').df
+    output_df = ns.Plate(data=input_df, values='area').df
 
-	assert output_df.equals(desired_df)
+    assert output_df.equals(desired_df)
