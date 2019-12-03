@@ -66,6 +66,8 @@ def test_tuple_of_tuples_with_name():
     output_df = ns.Plate(data=zip(wells, values), value_name='test').df
     desired_df = df = pd.DataFrame({
         'well': ['A1', 'A2'],
+        'row': ['A', 'A'],
+        'column': [1, 2],
         'test': [1, 2],
     })
 
@@ -133,7 +135,7 @@ def test_df_with_value():
         'area': [1],
     })
 
-    ns.Plate(data=df, values='area')
+    assert ns.Plate(data=df, values='area')._passed
 
 def test_df_move_value():
     input_df = pd.DataFrame({
@@ -144,6 +146,8 @@ def test_df_move_value():
 
     desired_df = pd.DataFrame({
         'well': ['A1'],
+        'row': ['A'],
+        'column': [1],
         'RT': [0.4],
         'area': [1],
     })

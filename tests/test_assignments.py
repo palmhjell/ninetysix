@@ -21,6 +21,8 @@ def test_simple_dict():
 
     desired_df = pd.DataFrame({
         'well': ['A1'],
+        'row': ['A'],
+        'column': [1],
         'condition': [1],
         'value': [1]
     })
@@ -44,6 +46,8 @@ def test_regex_dict():
 
     desired_df = pd.DataFrame({
         'well': ['A1', 'A2'],
+        'row': ['A', 'A'],
+        'column': [1, 2],
         'condition': [1, 1],
         'value': [1, 2]
     })

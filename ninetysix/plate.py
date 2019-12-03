@@ -16,6 +16,7 @@ class Plate():
         values=None,
         value_name=None,
         assign_wells=None,
+        lowercase=None,
     ):
 
         # Initial setup
@@ -25,11 +26,14 @@ class Plate():
         self._value_name = value_name
         self._passed = check_inputs(self)
         
-        # For easier unit testing: make dataframe only when passing
+        # For easier unit testing: do only when passing
         if self._passed:
-            self.df = self._make_df()
+            # Determine case
+            self._lowercase = lowercase
+            self._well_lowercase = self._get_well_case()
 
-        self._well_name = self._get_well_name()
+            # Make dataframe
+            self.df = self._make_df()
 
         if assign_wells is not None:
             self.assignments = assign_wells
@@ -39,6 +43,7 @@ class Plate():
     def _repr_html_(self):
         return self.df._repr_html_()
 
+    # Values
     @property
     def value_name(self):
         """Sets value name from 'value_name', 'values', or sets to 'value'."""
@@ -56,34 +61,79 @@ class Plate():
         del df[self.value_name]
         df[self.value_name] = values
         return df
+
+    # Cases
+    @property
+    def lowercase(self):
+        """Highest priority case-setter for new columns."""
+        return self._lowercase
+
+    def _get_well_case(self):
+        """After self._passing is True, determines well case."""
+        if self.data is None:
+            self._well_lowercase = True
+        elif ((type(self.data) != type(pd.DataFrame())) and
+              (type(self.data) != dict)):
+            self._well_lowercase = True
+        else:
+            if type(self.data) == type(pd.DataFrame()):
+                cols = self.data.columns
+            if type(self.data) == dict:
+                cols = self.data.keys()
+            well = [col for col in cols if col.lower() == 'well'][0]
+            case = well[0]
+            self._well_lowercase = True if case == case.lower() else False
+        return self._well_lowercase
+
+    def _standardize_case(self, string):
+        """Standardizes case of new columns based on self.case/well_case."""
+        if self.lowercase is not None:
+            lowercase = str.lower if self.lowercase else str.capitalize
+        else:
+            lowercase = self._well_lowercase
+        
+        case = str.lower if lowercase else str.capitalize
+        
+        return case(string)
     
     def _make_df(self):
         """Given passing inputs, sets up the initial DataFrame."""
+        # Use given case
+        well_string = self._standardize_case('well')
+
         if type(self.data) == type(pd.DataFrame()):
             df = self.data
         elif type(self.data) == dict:
             df = pd.DataFrame(self.data)
         elif type(self.values) == str:
-            df = pd.DataFrame(data=self.data, columns=['well', self.value_name])
+            df = pd.DataFrame(data=self.data, columns=[well_string, self.value_name])
         else:
             if self.wells is not None:
                 data = zip(self.wells, self.values)
             else:
                 data = self.data
-            df = pd.DataFrame(data=data, columns=['well', self.value_name])
-        
-        # Standardize -1 index for value
+            df = pd.DataFrame(data=data, columns=[well_string, self.value_name])
+
+        # Standardize 0 and -1 index for well and value
+        wells = df[well_string]
+        del df[well_string]
+        df.insert(0, well_string, wells)
+
         if self.value_name is None:
             self._value_name = df.columns[-1]
         else:
             df = self._move_values(df)
 
-        return df
+        # Add rows and columns
+        rows, cols = zip(*df[well_string].apply(
+            lambda well: (well[0], int(well[1:]))
+        ))
 
-    def _get_well_name(self):
-        """After self._passing is True, grabs the singular 'well' column."""
-        well_cols = [col for col in self.df.columns if col.lower() == 'well']
-        return well_cols[0]
+        for val, name in zip((cols, rows), ('column', 'row')):
+            name = self._standardize_case(name)
+            df.insert(1, name, val)
+
+        return df
 
     def assign_wells(self, assignments=None):
         """Takes either a nested dictionary or standardized excel
@@ -101,7 +151,7 @@ class Plate():
 
             # Make new columns
             for column in assignments.keys():
-                wells = self.df[self._well_name]
+                wells = self.df[self._standardize_case('well')]
                 self.df[column] = wells.map(assignments[column].get)
 
         self._move_values()
