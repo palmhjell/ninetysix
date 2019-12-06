@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+from functools import wraps
+
 from .checkers import check_inputs, check_assignments
 from .parsers import well_regex
 
@@ -17,6 +19,7 @@ class Plate():
         value_name=None,
         assign_wells=None,
         lowercase=None,
+        pandas_attrs=True,
     ):
 
         # Initial setup
@@ -25,6 +28,7 @@ class Plate():
         self.values = values
         self._value_name = value_name
         self._passed = check_inputs(self)
+        self._pandas_attrs = pandas_attrs
         
         # For easier unit testing: do only when passing
         if self._passed:
@@ -34,11 +38,19 @@ class Plate():
 
             # Make dataframe
             self.df = self._make_df()
+            if self._pandas_attrs:
+                _make_pandas_attrs(self)
 
         if assign_wells is not None:
             self.assignments = assign_wells
             self._assignment_pass = check_assignments(self)
             self.assign_wells()
+
+    def __getitem__(self, key):
+        return self.df[key]
+
+    def __setitem__(self, key, value):
+        self.df[key] = value
 
     def _repr_html_(self):
         return self.df._repr_html_()
@@ -157,4 +169,27 @@ class Plate():
         self._move_values()
 
         return self
+
+def _get_pandas_attrs(Plate, attr_name):
+    """Creates wrappers for pandas functions to Plate.df"""
+    attr = getattr(pd.DataFrame, attr_name)
+    if callable(attr):
+        @wraps(attr)
+        def wrapper(*args, **kwargs):
+            return attr(Plate.df, *args, **kwargs)
+        attr_pair = (attr_name, wrapper)
+    else:
+        attr = getattr(Plate.df, attr_name)
+        attr_pair = (attr_name, attr)
+
+    return attr_pair
+
+def _make_pandas_attrs(Plate):
+    """Assigns pandas attributes/methods to Plate from Plate.df."""
+    _pd_attrs = dir(pd.DataFrame)
+    _pd_deprecated = ['as_blocks', 'ftypes', 'is_copy', 'ix']
+    for attr_name in _pd_attrs:
+        if (attr_name not in _pd_deprecated) or (attr_name[0] != '_'):
+            attr_pair = _get_pandas_attrs(Plate, attr_name)
+            setattr(Plate, *attr_pair)
 
