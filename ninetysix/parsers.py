@@ -1,10 +1,14 @@
 from itertools import product
 
 
-def well_regex(assignment_dict, padded=False):
+def well_regex(input_dict, padded=False):
     """Parses simple regex-like syntax for
     well keys in an assignment dictionary.
     """
+    # Set up the new dict
+    parsed_dict = input_dict.copy()
+
+    # Deal with zero-padding in well
     def pad(col, padded=padded):
         if padded:
             if len(col) == 1:
@@ -14,8 +18,8 @@ def well_regex(assignment_dict, padded=False):
     rows = list('ABCDEFGH')
     cols = [pad(str(i)) for i in range(1, 13)]
 
-    for column in assignment_dict.keys():
-        working_dict = assignment_dict[column]
+    for column in parsed_dict.keys():
+        working_dict = parsed_dict[column]
         for assignment, value in working_dict.items():
             
             # If regex-ed
@@ -74,12 +78,16 @@ def well_regex(assignment_dict, padded=False):
 
                 else:
                     matching_cols = assignment[-1]
-                            
+
                 wells = [''.join(well)
                     for well in product(matching_rows, matching_cols)]
 
-                assignment_dict[column] = {
+                parsed_dict[column] = {
                     well: value for well in wells
                 }
 
-    return assignment_dict
+            # Non-regex
+            else:
+                parsed_dict[column][assignment] = value
+
+    return parsed_dict
