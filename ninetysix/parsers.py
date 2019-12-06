@@ -1,12 +1,18 @@
 from itertools import product
 
 
-def well_regex(assignment_dict):
+def well_regex(assignment_dict, padded=False):
     """Parses simple regex-like syntax for
     well keys in an assignment dictionary.
     """
+    def pad(col, padded=padded):
+        if padded:
+            if len(col) == 1:
+                col = '0'+col
+        return col
+
     rows = list('ABCDEFGH')
-    cols = [str(i) for i in range(1, 13)]
+    cols = [pad(str(i)) for i in range(1, 13)]
 
     for column in assignment_dict.keys():
         working_dict = assignment_dict[column]
@@ -54,8 +60,8 @@ def well_regex(assignment_dict):
                     comma_split = col_vals.split(',')
                     for col_set in comma_split:
                         
-                        # Get the range
-                        hyphen_split = col_set.split('-')
+                        # Get the range (need to pad here)
+                        hyphen_split = [pad(val) for val in col_set.split('-')]
                         
                         # Append range to list
                         if len(hyphen_split) > 1:

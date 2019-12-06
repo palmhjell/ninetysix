@@ -41,6 +41,10 @@ class Plate():
             if self._pandas_attrs:
                 _make_pandas_attrs(self)
 
+        # Determine if zero-padded
+        self._zero_padded = self._get_zero_padding()
+
+        # Annotate
         if assign_wells is not None:
             self.assignments = assign_wells
             self._assignment_pass = check_assignments(self)
@@ -147,6 +151,26 @@ class Plate():
 
         return df
 
+    def _get_zero_padding(self):
+        """Determines if well inputs are zero-padded."""
+        # Assume False, switch conditionally
+        padded = False
+        well_col = self._standardize_case('well')
+        wells = self.df[well_col]
+        
+        for well in wells:
+
+            # Check int conversion
+            col = well[1:]
+            if col != str(int(col)):
+                padded = True
+
+            # Check lengths
+            if len(well) < 3:
+                padded = False
+
+        return padded
+
     def assign_wells(self, assignments=None):
         """Takes either a nested dictionary or standardized excel
         spreadsheet (see ninetysix/templates) to assign new columns
@@ -159,7 +183,7 @@ class Plate():
         assignment_type = type(assignments)
         if assignment_type == dict:
             # Unpack dictionary
-            assignments = well_regex(assignments)
+            assignments = well_regex(assignments, padded=self._zero_padded)
 
             # Make new columns
             for column in assignments.keys():
@@ -187,9 +211,14 @@ def _get_pandas_attrs(Plate, attr_name):
 def _make_pandas_attrs(Plate):
     """Assigns pandas attributes/methods to Plate from Plate.df."""
     _pd_attrs = dir(pd.DataFrame)
-    _pd_deprecated = ['as_blocks', 'ftypes', 'is_copy', 'ix']
+    _pd_deprecated = ['as_blocks', 'blocks', 'ftypes', 'is_copy', 'ix']
     for attr_name in _pd_attrs:
-        if (attr_name not in _pd_deprecated) or (attr_name[0] != '_'):
-            attr_pair = _get_pandas_attrs(Plate, attr_name)
-            setattr(Plate, *attr_pair)
+        if (attr_name in _pd_deprecated) or (attr_name[0] == '_'):
+            continue
+        attr_pair = _get_pandas_attrs(Plate, attr_name)
+        setattr(Plate, *attr_pair)
+
+
+
+
 
