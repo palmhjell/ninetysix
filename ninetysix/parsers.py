@@ -79,7 +79,7 @@ def well_regex(input_dict, padded=False):
                             matching_cols += hyphen_split
 
                 else:
-                    matching_cols = assignment[-1]
+                    matching_cols = [pad(col) for col in assignment[-1]]
 
                 wells = [''.join(well)
                     for well in product(matching_rows, matching_cols)]

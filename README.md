@@ -3,7 +3,7 @@ A general package for tidying, annotating, and analyzing 96-well plate data.
 
 ### Note: This is a work in progress, and not yet ready for major release or use. 
 
-A few functionalities (thee `Plate()` class, generally, and `parsers.well_regex()`) are functional and usable, but not to their full extent. An intial release and push to PyPI will be made once all basic functionality is included.
+A few functionalities (the `Plate()` class, generally, and `parsers.well_regex()`) are functional and usable, but not to their full extent. An intial release and push to PyPI will be made once all basic functionality is included.
 
 ## Purpose
 `ninetysix` provides a method of combining well-value data pairs and efficiently adding additional information (controls, conditions) and processing and visualizing the results, writing out complete and informative experimental results as `.csv` files and plots.
