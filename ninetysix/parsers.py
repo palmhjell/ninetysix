@@ -19,8 +19,10 @@ def well_regex(input_dict, padded=False):
     cols = [pad(str(i)) for i in range(1, 13)]
 
     for column in parsed_dict.keys():
-        working_dict = parsed_dict[column]
-        for assignment, value in working_dict.items():
+        working_dict = parsed_dict[column].copy()
+        for assignment in working_dict.keys():
+
+            value = parsed_dict[column].pop(assignment)
             
             # If regex-ed
             if '[' in assignment:
@@ -82,12 +84,11 @@ def well_regex(input_dict, padded=False):
                 wells = [''.join(well)
                     for well in product(matching_rows, matching_cols)]
 
-                parsed_dict[column] = {
-                    well: value for well in wells
-                }
-
             # Non-regex
             else:
-                parsed_dict[column][assignment] = value
+                wells = [assignment]
+            
+            for well in wells:
+                parsed_dict[column][well] = value
 
     return parsed_dict
