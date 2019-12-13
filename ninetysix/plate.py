@@ -8,7 +8,103 @@ from .parsers import well_regex
 
 
 class Plate():
-    """Need a comprehensive docstring here.
+    """A pandas DataFrame-centric object for tidying, annotating,
+    and analyzing 96-well plate data, particularly as well-value
+    pairs. Additional information can be passed in (if instantiating
+    from a separate DataFrame or dictionary) and used for future
+    analysis or assigned on or after instantiation.
+
+    Parameters
+    ----------
+    data : dict, DataFrame, or Iterable (list of length-two lists)
+        Given a dict or DataFrame, the data must contain a key/column
+        name that identifies 'well' (case-insentivie). The final
+        (-1 index) key/column is assumed to be the value of interest.
+        It can be assigned a name in the final DataFrame via 'values'
+        or 'value_name' kwarg. Passing in an Iterable assumes (well, value)
+        ordering and assigns as such. Must be None is wells is not None.
+    wells : array-like object
+        A list of wells. Must correspond in-place with values passed in
+        the 'values' kwarg. Must be None if data is not None.
+    values : string or array-like object
+        If passed as a list of values, it must correspond in place to
+        the list passed in the 'wells' kwarg. If string, is assumed to
+        be the name of the data value. Either finds it as a key/column
+        in the 'data' kwarg input and shifts this to the -1 index or, if
+        'data' is an Iterable, assigns this string to the column resulting
+        from the second entry in each (well-value) pair. Equivalently
+        assigned with 'value_name' kwarg.
+    value_name : string
+        Non-ambiguous assignment of value name, particularly for when using
+        'values' kwarg. Regardless, will assign the name of the value
+        column in the same was as a string value in 'values'.
+    assign_wells : nested dictionary
+        Maps wells to conditions in new columns of a tidy DataFrame. The
+        outermost keys give the name of the resulting column. The inner
+        keys are the wells corresponding to a given condition/value.
+        Inner keys support simply regex specification of well, such as
+        '[A-C,E]2' for 'A2', 'B2', 'C2', 'E2'. (Or 'A02', etc., which is
+        inferred from the initial construction). See the assign_wells()
+        method or parser.well_regex() function for more details.
+    lowercase : boolean
+        Whether or not auto-generated columns (such as 'row' and 'column'
+        from 'well') should be lowercase. Initially assumed from case of
+        'well' column, but priority goes to this argument. False gives
+        capitalized values.
+    pandas_attrs : boolean, default True
+        Whether or not to assign pandas attributes and methods directly to
+        Plate object rather than only being accessible via the underlying
+        Plate.df attribute.
+
+    Examples
+    --------
+    Constructing a Plate object with 'data':
+    
+    With a dictionary (or DataFrame)
+    >>> input_dict = {
+    ...     'well': ['A1', 'A2'],
+    ...     'area': [1, 0.5],
+    ...     'RT': [0.42, 0.41],
+    ... }
+    >>> ns.Plate(data=input_dict, values='area')
+        well    row    column    RT    area
+    0   'A1'    'A'      1       0.42   1
+    1   'A2'    'A'      2       0.41  0.5
+
+    # With an Iterable
+    >>> input = zip(['A1', 'A2'], [1, 0.5])
+    >>> ns.Plate(data=input, value_name='area')
+        well    row    column   area
+    0   'A1'    'A'      1       1
+    1   'A2'    'A'      2      0.5
+
+    Force capitalized and with zero-padding
+    >>> input_dict = {
+    ...     'well': ['A01', 'A02'],
+    ...     'area': [1, 0.5],
+    ...     'RT': [0.42, 0.41],
+    ... }
+    >>> ns.Plate(data=input_dict, values='Area', lowercase=False)
+        Well    Row    Column    RT     Area
+    0   'A01'    'A'      1      0.42    1
+    1   'A02'    'A'      2      0.41   0.5
+
+    Assign wells
+    >>> input_dict = {
+    ...     'well': ['A1', 'A2'],
+    ...     'area': [1, 0.5],
+    ...     'RT': [0.42, 0.41],
+    ... }
+    >>> controls = {
+    ...     'controls': {
+    ...         'A1': 'Experiment',
+    ...         'A2': 'Negative',
+    ...     }
+    ... }
+    >>> ns.Plate(data=input_dict, values='area', assign_wells=controls)
+        well    row    column    RT     controls     area
+    0   'A1'    'A'      1       0.42   'Experiment'   1
+    1   'A2'    'A'      2       0.41   'Negative'    0.5
     """
 
     def __init__(

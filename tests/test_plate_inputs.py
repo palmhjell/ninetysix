@@ -64,7 +64,7 @@ def test_tuple_of_tuples_with_name():
     assert ns.Plate(data=zip(wells, values), value_name='test')._passed
 
     output_df = ns.Plate(data=zip(wells, values), value_name='test').df
-    desired_df = df = pd.DataFrame({
+    desired_df = pd.DataFrame({
         'well': ['A1', 'A2'],
         'row': ['A', 'A'],
         'column': [1, 2],

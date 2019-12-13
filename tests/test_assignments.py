@@ -55,3 +55,27 @@ def test_regex_dict():
     output_df = ns.Plate(data=df, assign_wells=assignments).df
 
     assert output_df.equals(desired_df)
+
+def test_regex_dict_infer_padding():
+    df = pd.DataFrame({
+        'well': ['A01', 'A02'],
+        'value': [1, 2],
+    })
+
+    assignments = {
+        'condition' : {
+            'A[1-2]': 1
+        }
+    }
+
+    desired_df = pd.DataFrame({
+        'well': ['A01', 'A02'],
+        'row': ['A', 'A'],
+        'column': [1, 2],
+        'condition': [1, 1],
+        'value': [1, 2]
+    })
+
+    output_df = ns.Plate(data=df, assign_wells=assignments).df
+
+    assert output_df.equals(desired_df)
