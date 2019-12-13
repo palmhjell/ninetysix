@@ -182,13 +182,15 @@ class Plate():
 
         assignment_type = type(assignments)
         if assignment_type == dict:
-            # Unpack dictionary
-            assignments = well_regex(assignments, padded=self._zero_padded)
-
-            # Make new columns
+            
+            # Unpack dictionary and assign
             for column in assignments.keys():
+                working_assignments = well_regex(assignments[column],
+                                                 padded=self._zero_padded)
+
+                # Make new columns
                 wells = self.df[self._standardize_case('well')]
-                self.df[column] = wells.map(assignments[column].get)
+                self.df[column] = wells.map(working_assignments.get)
 
         self._move_values()
 

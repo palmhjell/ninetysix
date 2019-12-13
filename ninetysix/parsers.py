@@ -18,77 +18,78 @@ def well_regex(input_dict, padded=False):
     rows = list('ABCDEFGH')
     cols = [pad(str(i)) for i in range(1, 13)]
 
-    for column in parsed_dict.keys():
-        working_dict = parsed_dict[column].copy()
-        for assignment in working_dict.keys():
+    # Set up a dictionary that can change during the loop
+    working_dict = parsed_dict.copy()
+    for assignment in working_dict.keys():
 
-            value = parsed_dict[column].pop(assignment)
+        # Pop the assignment and store
+        value = parsed_dict.pop(assignment)
+        
+        # If regex-ed
+        if '[' in assignment:
+
+            # Determine if rows, columns, or both are regex-ed
+            row = True if assignment[0] == '[' else False
+            col = True if assignment[-1] == ']' else False
             
-            # If regex-ed
-            if '[' in assignment:
-
-                # Determine if rows, columns, or both are regex-ed
-                row = True if assignment[0] == '[' else False
-                col = True if assignment[-1] == ']' else False
+            if row:
+                matching_rows = []
                 
-                if row:
-                    matching_rows = []
+                # Get the row regex contents
+                row_vals = assignment[1:assignment.find(']')]
+                
+                # Iterate through each group, if given
+                comma_split = row_vals.split(',')
+                for row_set in comma_split:
                     
-                    # Get the row regex contents
-                    row_vals = assignment[1:assignment.find(']')]
+                    # Get the range
+                    hyphen_split = row_set.split('-')
                     
-                    # Iterate through each group, if given
-                    comma_split = row_vals.split(',')
-                    for row_set in comma_split:
+                    # Append range to list
+                    if len(hyphen_split) > 1:
+                        row_range = rows[rows.index(hyphen_split[0]):rows.index(hyphen_split[1])+1]
+                        matching_rows += row_range
                         
-                        # Get the range
-                        hyphen_split = row_set.split('-')
-                        
-                        # Append range to list
-                        if len(hyphen_split) > 1:
-                            row_range = rows[rows.index(hyphen_split[0]):rows.index(hyphen_split[1])+1]
-                            matching_rows += row_range
-                            
-                        # Else append single value to list
-                        else:
-                            matching_rows += hyphen_split
+                    # Else append single value to list
+                    else:
+                        matching_rows += hyphen_split
 
-                else:
-                    matching_rows = assignment[0]
-                    
-                if col:
-                    matching_cols = []
-                    
-                    # Get the column regex contents
-                    col_vals = assignment[assignment.rfind('[')+1:-1]
-                    
-                    # Iterate through each group, if given
-                    comma_split = col_vals.split(',')
-                    for col_set in comma_split:
-                        
-                        # Get the range (need to pad here)
-                        hyphen_split = [pad(val) for val in col_set.split('-')]
-                        
-                        # Append range to list
-                        if len(hyphen_split) > 1:
-                            col_range = cols[cols.index(hyphen_split[0]):cols.index(hyphen_split[1])+1]
-                            matching_cols += col_range
-                        
-                        # Else append single value to list
-                        else:
-                            matching_cols += hyphen_split
-
-                else:
-                    matching_cols = [pad(col) for col in assignment[-1]]
-
-                wells = [''.join(well)
-                    for well in product(matching_rows, matching_cols)]
-
-            # Non-regex
             else:
-                wells = [assignment]
-            
-            for well in wells:
-                parsed_dict[column][well] = value
+                matching_rows = assignment[0]
+                
+            if col:
+                matching_cols = []
+                
+                # Get the column regex contents
+                col_vals = assignment[assignment.rfind('[')+1:-1]
+                
+                # Iterate through each group, if given
+                comma_split = col_vals.split(',')
+                for col_set in comma_split:
+                    
+                    # Get the range (need to pad here)
+                    hyphen_split = [pad(val) for val in col_set.split('-')]
+                    
+                    # Append range to list
+                    if len(hyphen_split) > 1:
+                        col_range = cols[cols.index(hyphen_split[0]):cols.index(hyphen_split[1])+1]
+                        matching_cols += col_range
+                    
+                    # Else append single value to list
+                    else:
+                        matching_cols += hyphen_split
+
+            else:
+                matching_cols = [pad(col) for col in assignment[-1]]
+
+            wells = [''.join(well)
+                for well in product(matching_rows, matching_cols)]
+
+        # Non-regex
+        else:
+            wells = [assignment]
+        
+        for well in wells:
+            parsed_dict[well] = value
 
     return parsed_dict
