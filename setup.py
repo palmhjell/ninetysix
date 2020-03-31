@@ -31,6 +31,7 @@ setup(
         'pandas',
         'bokeh',
         'holoviews',
+        'pandas_flavor',
     ],
     classifiers=(
         "Programming Language :: Python :: 3",
