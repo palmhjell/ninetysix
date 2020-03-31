@@ -77,5 +77,7 @@ def test_regex_dict_infer_padding():
     })
 
     output_df = ns.Plate(data=df, assign_wells=assignments).df
+    print(assignments)
+    print(output_df)
 
     assert output_df.equals(desired_df)

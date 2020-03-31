@@ -34,6 +34,64 @@ def test_nonstring_value():
     with pytest.raises(TypeError):
         ns.Plate(data=df, values=4)
 
+def test_auto_padding():
+
+    # Auto-detect (lack of) padding
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'test': [1],
+    })
+
+    padded = ns.Plate(data=df, value_name='test').zero_padding
+
+    assert not padded
+
+    # Auto-detect padding
+    df = pd.DataFrame({
+        'well': ['A01'],
+        'test': [1],
+    })
+
+    padded = ns.Plate(data=df, value_name='test').zero_padding
+
+    assert padded
+
+def test_explicit_padding():
+
+    # Update to padded
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'test': [1],
+    })
+
+    output_df = ns.Plate(data=df, value_name='test', zero_padding=True).df
+
+    desired_df = pd.DataFrame({
+        'well': ['A01'],
+        'row': ['A'],
+        'column': [1],
+        'test': [1],
+    })
+
+    assert output_df.equals(desired_df)
+
+    # Update to un-padded
+    df = pd.DataFrame({
+        'well': ['A01'],
+        'test': [1],
+    })
+
+    output_df = ns.Plate(data=df, value_name='test', zero_padding=False).df
+
+    desired_df = pd.DataFrame({
+        'well': ['A1'],
+        'row': ['A'],
+        'column': [1],
+        'test': [1],
+    })
+
+    assert output_df.equals(desired_df)
+
 
 # Well-value pair inputs
 def test_two_lists():

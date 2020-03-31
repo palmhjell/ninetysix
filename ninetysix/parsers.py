@@ -1,5 +1,16 @@
 from itertools import product
 
+def pad(col, padded=True):
+    """Converts to or from zero-padded column names
+    (e.g., A1 <-> A01)
+    """
+    # Standardize to int, then back to str
+    if type(col) != int:
+        col = str(int(col))
+    if padded:
+        if len(col) == 1:
+            col = '0'+col
+    return col
 
 def well_regex(input_dict, padded=False):
     """Parses simple regex-like syntax for
@@ -9,14 +20,8 @@ def well_regex(input_dict, padded=False):
     parsed_dict = input_dict.copy()
 
     # Deal with zero-padding in well
-    def pad(col, padded=padded):
-        if padded:
-            if len(col) == 1:
-                col = '0'+col
-        return col
-
     rows = list('ABCDEFGH')
-    cols = [pad(str(i)) for i in range(1, 13)]
+    cols = [pad(str(i), padded) for i in range(1, 13)]
 
     # Set up a dictionary that can change during the loop
     working_dict = parsed_dict.copy()
@@ -68,7 +73,7 @@ def well_regex(input_dict, padded=False):
                 for col_set in comma_split:
                     
                     # Get the range (need to pad here)
-                    hyphen_split = [pad(val) for val in col_set.split('-')]
+                    hyphen_split = [pad(val, padded) for val in col_set.split('-')]
                     
                     # Append range to list
                     if len(hyphen_split) > 1:
@@ -80,7 +85,7 @@ def well_regex(input_dict, padded=False):
                         matching_cols += hyphen_split
 
             else:
-                matching_cols = [pad(col) for col in assignment[-1]]
+                matching_cols = [pad(col, padded) for col in assignment[-1]]
 
             wells = [''.join(well)
                 for well in product(matching_rows, matching_cols)]

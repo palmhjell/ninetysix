@@ -6,7 +6,7 @@ import pandas_flavor as pf
 from functools import wraps
 
 from .checkers import check_inputs, check_assignments
-from .parsers import well_regex
+from .parsers import pad, well_regex
 
 
 class Plate():
@@ -117,11 +117,12 @@ class Plate():
         value_name=None,
         assign_wells=None,
         lowercase=None,
+        zero_padding=None,
         pandas_attrs=True,
     ):
 
         # Initial setup
-        self.data = data
+        self._data = data
         self.wells = wells
         self.values = values
         self._value_name = value_name
@@ -134,19 +135,19 @@ class Plate():
             self._lowercase = lowercase
             self._well_lowercase = self._get_well_case()
 
+            # Determine if zero-padded
+            self._zero_padding = zero_padding
+
             # Make dataframe
             self.df = self._make_df()
             if self._pandas_attrs:
                 _make_pandas_attrs(self)
 
-        # Determine if zero-padded
-        self._zero_padded = self._get_zero_padding()
-
-        # Annotate
-        if assign_wells is not None:
-            self.assignments = assign_wells
-            self._assignment_pass = check_assignments(self)
-            self.assign_wells()
+            # Annotate
+            if assign_wells is not None:
+                self.assignments = assign_wells
+                self._assignment_pass = check_assignments(self)
+                self.assign_wells()
 
     def __getitem__(self, key):
         return self.df[key]
@@ -156,6 +157,14 @@ class Plate():
 
     def _repr_html_(self):
         return self.df._repr_html_()
+
+    # Make sure data is not a generator
+    @property
+    def data(self):
+        """Makes sure data is not zip, since it's called multiple times"""
+        if isinstance(self._data, type(zip())):
+            self._data = list(self._data)
+        return self._data
 
     # Values
     @property
@@ -186,9 +195,11 @@ class Plate():
         """After self._passing is True, determines well case."""
         if self.data is None:
             self._well_lowercase = True
+            self._well_list = self.wells.copy()
         elif ((type(self.data) != type(pd.DataFrame())) and
               (type(self.data) != dict)):
             self._well_lowercase = True
+            self._well_list = list(zip(*self.data)).copy()[0]
         else:
             if type(self.data) == type(pd.DataFrame()):
                 cols = self.data.columns
@@ -197,6 +208,7 @@ class Plate():
             well = [col for col in cols if col.lower() == 'well'][0]
             case = well[0]
             self._well_lowercase = True if case == case.lower() else False
+            self._well_list = self.data[well].copy()
         return self._well_lowercase
 
     def _standardize_case(self, string):
@@ -209,6 +221,28 @@ class Plate():
         case = str.lower if lowercase else str.capitalize
         
         return case(string)
+
+    @property
+    def zero_padding(self):
+        """Determines if well inputs are zero-padded."""
+
+        # If no explicit input, assume False and switch conditionally
+        if self._zero_padding is None:
+            
+            self._zero_padding = False
+        
+            for well in self._well_list:
+
+                # Check int conversion
+                col = well[1:]
+                if col != str(int(col)):
+                    self._zero_padding = True
+
+                # Check lengths
+                if len(well) < 3:
+                    self._zero_padding = False
+
+        return self._zero_padding
     
     def _make_df(self):
         """Given passing inputs, sets up the initial DataFrame."""
@@ -228,10 +262,13 @@ class Plate():
                 data = self.data
             df = pd.DataFrame(data=data, columns=[well_string, self.value_name])
 
+        # Apply padding
+        self._well_list = [well[0]+pad(well[1:], padded=self.zero_padding)
+                for well in self._well_list]
+
         # Standardize 0 and -1 index for well and value
-        wells = df[well_string]
         del df[well_string]
-        df.insert(0, well_string, wells)
+        df.insert(0, well_string, self._well_list)
 
         if self.value_name is None:
             self._value_name = df.columns[-1]
@@ -251,25 +288,6 @@ class Plate():
 
         return df
 
-    def _get_zero_padding(self):
-        """Determines if well inputs are zero-padded."""
-        # Assume False, switch conditionally
-        padded = False
-        well_col = self._standardize_case('well')
-        wells = self.df[well_col]
-        
-        for well in wells:
-
-            # Check int conversion
-            col = well[1:]
-            if col != str(int(col)):
-                padded = True
-
-            # Check lengths
-            if len(well) < 3:
-                padded = False
-
-        return padded
 
 ######## Plate-specific methods ########
 
@@ -288,7 +306,7 @@ class Plate():
             # Unpack dictionary and assign
             for column in assignments.keys():
                 working_assignments = well_regex(assignments[column],
-                                                 padded=self._zero_padded)
+                                                 padded=self.zero_padding)
 
                 # Make new columns
                 wells = self.df[self._standardize_case('well')]
