@@ -53,6 +53,10 @@ class Plate():
         from 'well') should be lowercase. Initially assumed from case of
         'well' column, but priority goes to this argument. False gives
         capitalized values.
+    zero_padded : bool, default None
+        Whether or not the wells are (or should be) zero-padded, e.g., A1
+        or A01. If None, determines this from what's given. If True or False,
+        will update the wells to match this state.
     pandas_attrs : bool, default True
         Whether or not to assign pandas attributes and methods directly to
         Plate object rather than only being accessible via the underlying
