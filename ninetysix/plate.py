@@ -1,12 +1,9 @@
 import numpy as np
 import pandas as pd
 
-import pandas_flavor as pf
-
-from functools import wraps
-
 from .checkers import check_inputs, check_assignments
 from .parsers import pad, well_regex
+from .pandas_attrs import _make_pandas_attrs
 
 
 class Plate():
@@ -125,7 +122,11 @@ class Plate():
         pandas_attrs=True,
     ):
 
-        # Initial setup
+
+###########################
+# Initial set up
+###########################
+
         self._data = data
         self.wells = wells
         self.values = values
@@ -142,16 +143,26 @@ class Plate():
             # Determine if zero-padded
             self._zero_padding = zero_padding
 
-            # Make dataframe
+            # Make DataFrame
             self.df = self._make_df()
+
+            # Try to add pandas_attrs
             if self._pandas_attrs:
-                _make_pandas_attrs(self)
+                try:
+                    _make_pandas_attrs(self)
+                except ImportError:
+                    self._pandas_attrs = 'Failed due to import error'
 
             # Annotate
             if assign_wells is not None:
                 self.assignments = assign_wells
                 self._assignment_pass = check_assignments(self)
                 self.assign_wells()
+
+
+###########################
+# Operator Overloads
+###########################
 
     def __getitem__(self, key):
         return self.df[key]
@@ -162,7 +173,11 @@ class Plate():
     def _repr_html_(self):
         return self.df._repr_html_()
 
-    # Make sure data is not a generator
+
+###########################
+# Properties and support methods
+###########################
+
     @property
     def data(self):
         """Makes sure data is not zip, since it's called multiple times"""
@@ -170,7 +185,6 @@ class Plate():
             self._data = list(self._data)
         return self._data
 
-    # Values
     @property
     def value_name(self):
         """Sets value name from 'value_name', 'values', or sets to 'value'."""
@@ -189,7 +203,6 @@ class Plate():
         df[self.value_name] = values
         return df
 
-    # Cases
     @property
     def lowercase(self):
         """Highest priority case-setter for new columns."""
@@ -247,6 +260,11 @@ class Plate():
                     self._zero_padding = False
 
         return self._zero_padding
+
+
+###########################
+# DataFrame construction
+###########################
     
     def _make_df(self):
         """Given passing inputs, sets up the initial DataFrame."""
@@ -293,7 +311,9 @@ class Plate():
         return df
 
 
-######## Plate-specific methods ########
+###########################
+# Plate-specific methods
+###########################
 
     def assign_wells(self, assignments=None):
         """Takes either a nested dictionary or standardized excel
@@ -319,52 +339,3 @@ class Plate():
         self._move_values()
 
         return self
-
-# For placing pandas attributes/functions on Plate
-# rather only being accessible via Plate.df.
-# pandas_flavor (pf) helps return pd.DataFrame output as Plate
-@pf.register_dataframe_method
-def as_plate(df):
-    """Adds a method .as_plate() to wrap DataFrame as Plate"""
-    return Plate(df)
-
-def _get_pandas_attrs(Plate, attr_name):
-    """Creates wrappers for pandas functions to Plate.df"""
-    
-    attr = getattr(pd.DataFrame, attr_name)
-    if callable(attr):
-        @wraps(attr)
-        def wrapper(*args, **kwargs):
-            
-            # head and tail are not used as new Plates; return pd obj is fine
-            if attr_name in ('head', 'tail'):
-                output = attr(Plate.df, *args, **kwargs)
-
-            # .as_plate() method returns DataFrame back as Plate object
-            else:
-                output = attr(Plate.df, *args, **kwargs).as_plate()
-            return output
-        attr_pair = (attr_name, wrapper)
-    
-    else:
-        attr = getattr(Plate.df, attr_name)
-        attr_pair = (attr_name, attr)
-
-    return attr_pair
-
-def _make_pandas_attrs(Plate):
-    """Assigns pandas attributes/methods to Plate from Plate.df"""
-    
-    _pd_attrs = dir(pd.DataFrame)
-    _pd_deprecated = ['as_blocks', 'blocks', 'ftypes', 'is_copy', 'ix']
-    
-    for attr_name in _pd_attrs:
-        if (attr_name in _pd_deprecated) or (attr_name[0] == '_'):
-            continue
-        attr_pair = _get_pandas_attrs(Plate, attr_name)
-        setattr(Plate, *attr_pair)
-
-
-
-
-
