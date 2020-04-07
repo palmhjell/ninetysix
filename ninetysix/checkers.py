@@ -47,8 +47,6 @@ def check_inputs(Plate):
         df = None
         if type(Plate.data) == type(pd.DataFrame()):
             df = Plate.data
-        elif type(Plate.data) == dict:
-            df = pd.DataFrame(Plate.data)
 
         if df is not None:
             well_cols = [col for col in df.columns if col.lower() == 'well']

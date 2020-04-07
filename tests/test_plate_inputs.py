@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 
 import ninetysix as ns
 
@@ -140,7 +141,7 @@ def test_tuple_of_tuples_with_value_list():
         ns.Plate(data=data, values=values)
 
 
-# DataFrame/dict inputs
+# DataFrame/dict/path inputs
 def test_simple_df():
     df = pd.DataFrame({
         'well': ['A1'],
@@ -148,6 +149,7 @@ def test_simple_df():
     })
 
     assert ns.Plate(data=df)._passed
+    assert ns.Plate(data=df).value_name == 'value'
 
 def test_simple_dict():
     data = {
@@ -213,3 +215,29 @@ def test_df_move_value():
     output_df = ns.Plate(data=input_df, values='area').df
 
     assert output_df.equals(desired_df)
+
+def test_read_csv():
+
+    df = pd.DataFrame({
+        'well': ['A'+str(col) for col in range(1, 13)],
+        'test': [1]*12,
+    })
+
+    temp = ns.Plate(data=df, value_name='test').to_csv('temp.csv')
+
+    plate = ns.Plate('temp.csv')
+
+    os.remove('temp.csv')
+
+def test_read_excel():
+
+    df = pd.DataFrame({
+        'well': ['A'+str(col) for col in range(1, 13)],
+        'test': [1]*12,
+    })
+
+    ns.Plate(data=df, value_name='test').to_excel('temp.xlsx')
+
+    plate = ns.Plate('temp.xlsx')
+
+    os.remove('temp.xlsx')

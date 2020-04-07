@@ -180,18 +180,34 @@ class Plate():
 
     @property
     def data(self):
-        """Makes sure data is not zip, since it's called multiple times"""
+        """Makes sure data is not zip, since it's called multiple times,
+        and read in to pd.DataFrame if dict or path.
+        """
         if isinstance(self._data, type(zip())):
             self._data = list(self._data)
+        if type(self._data) == dict:
+            self._data = pd.DataFrame(self._data)
+        if type(self._data) == str:
+            extension = self._data.split('.')[-1]
+            if extension == 'csv':
+                self._data = pd.read_csv(self._data)
+            if extension in ('xls', 'xlsx'):
+                engine = 'openpyxl' if extension == 'xlsx' else 'xlrd'
+                self._data = pd.read_excel(self._data, engine=engine)
         return self._data
 
     @property
     def value_name(self):
-        """Sets value name from 'value_name', 'values', or sets to 'value'."""
-        if (self._value_name is None) & (type(self.values) == str):
+        """Sets value name from 'value_name', 'values', or sets to 'value',
+        unless obtained from the final column of a DataFrame.
+        """
+        if (self._value_name is None) & (self.values is None):
+            if type(self.data) == type(pd.DataFrame()):
+                self._value_name = self.data.columns[-1]
+            else:
+                self._value_name = 'value'
+        elif (self._value_name is None) & (type(self.values) == str):
             self._value_name = self.values
-        elif self._value_name is None:
-            self._value_name = 'value'
         return self._value_name
 
     def _move_values(self, df=None):
@@ -213,15 +229,12 @@ class Plate():
         if self.data is None:
             self._well_lowercase = True
             self._well_list = self.wells.copy()
-        elif ((type(self.data) != type(pd.DataFrame())) and
-              (type(self.data) != dict)):
+        elif type(self.data) != type(pd.DataFrame()):
             self._well_lowercase = True
             self._well_list = list(zip(*self.data)).copy()[0]
         else:
             if type(self.data) == type(pd.DataFrame()):
                 cols = self.data.columns
-            if type(self.data) == dict:
-                cols = self.data.keys()
             well = [col for col in cols if col.lower() == 'well'][0]
             case = well[0]
             self._well_lowercase = True if case == case.lower() else False
@@ -273,8 +286,6 @@ class Plate():
 
         if type(self.data) == type(pd.DataFrame()):
             df = self.data
-        elif type(self.data) == dict:
-            df = pd.DataFrame(self.data)
         elif type(self.values) == str:
             df = pd.DataFrame(data=self.data, columns=[well_string, self.value_name])
         else:
