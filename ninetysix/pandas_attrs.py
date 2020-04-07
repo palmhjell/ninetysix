@@ -8,9 +8,9 @@ import ninetysix as ns
 # rather only being accessible via Plate.df.
 # pandas_flavor (pf) helps return pd.DataFrame output as Plate
 @pf.register_dataframe_method
-def as_plate(df):
+def as_plate(df, value):
     """Adds a method .as_plate() to wrap pd.DataFrame as ns.Plate"""
-    return ns.Plate(df)
+    return ns.Plate(df, value_name=value)
 
 def _get_pandas_attrs(Plate, attr_name):
     """Creates wrappers for pandas functions to Plate.df"""
@@ -23,9 +23,17 @@ def _get_pandas_attrs(Plate, attr_name):
             if attr_name in ('head', 'tail'):
                 output = attr(Plate.df, *args, **kwargs)
 
+            # Default to index=False
+            elif attr_name in ('to_csv', 'to_excel'):
+                if 'index' in kwargs:
+                    index = kwargs.pop('index')
+                else:
+                    index = False
+                output = attr(Plate.df, index=index, *args, **kwargs)
+
             # .as_plate() method returns DataFrame back as Plate object
             else:
-                output = attr(Plate.df, *args, **kwargs).as_plate()
+                output = attr(Plate.df, *args, **kwargs).as_plate(Plate.value_name)
             
             return output
         
