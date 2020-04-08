@@ -18,12 +18,15 @@ class Plate():
 
     Parameters
     ----------
-    data : dict, DataFrame, or Iterable (list of length-two lists)
+    data : dict, DataFrame, Iterable (list of length-two lists), or path
         Given a dict or DataFrame, the data must contain a key/column
         name that identifies 'well' (case-insentivie). The value of interest 
         can be assigned a name in the final DataFrame via 'values'
         or 'value_name' kwarg. Passing in an Iterable assumes (well, value)
-        ordering and assigns as such. Must be None is wells is not None.
+        ordering and assigns as such. Passing a string will assume a path
+        to a pandas-readable csv or excel file, using the default settings.
+        If more control over the import of this file is needed, import to a
+        pandas DataFrame first, then pass this to 'data'. Must be None is wells is not None.
     wells : array-like object
         A list of wells. Must correspond in-place with list of values passed
         in the 'values' kwarg. Must be None if data is not None.
@@ -36,15 +39,18 @@ class Plate():
         assigned with 'value_name' kwarg.
     value_name : string
         Non-ambiguous specification or assignment of value name.
-    assign_wells : nested dictionary or template excel file
+    assignments : nested dictionary or template excel file
         Maps wells to conditions in new columns of a tidy DataFrame. The
         outermost keys give the name of the resulting column. The inner
         keys are the wells corresponding to a given condition/value.
         Inner keys support simply regex specification of well, such as
         '[A-C,E]2' for 'A2', 'B2', 'C2', 'E2'. (Or 'A02', etc., which is
-        inferred from the initial construction.) Also takes a specific
-        excel spreadsheet format; see the assign_wells() method or 
-        parsers.well_regex() function for more details.
+        inferred from the initial construction.) Inner keys can also be one
+        of (default, standard, else, other), and the value of this key will
+        be assigned to all other non-specified wells (else they get a value
+        of `None`). Also takes a specific excel spreadsheet format; see the
+        assign_wells() method or  parsers.well_regex() function for more
+        details.
     lowercase : bool
         Whether or not auto-generated columns (such as 'row' and 'column'
         from 'well') should be lowercase. Initially assumed from case of
@@ -57,7 +63,8 @@ class Plate():
     pandas_attrs : bool, default True
         Whether or not to assign pandas attributes and methods directly to
         Plate object rather than only being accessible via the underlying
-        Plate.df attribute.
+        Plate.df attribute. If it fails due to an import error, a message
+        (Failed due to import error) replaces the bool.
 
     Examples
     --------
@@ -104,7 +111,7 @@ class Plate():
     ...         'A2': 'Negative',
     ...     }
     ... }
-    >>> ns.Plate(data=input_dict, values='area', assign_wells=controls)
+    >>> ns.Plate(data=input_dict, values='area', assignments=controls)
         well    row   column      RT       controls    area
     0   'A1'    'A'        1    0.42   'Experiment'       1
     1   'A2'    'A'        2    0.41     'Negative'     0.5

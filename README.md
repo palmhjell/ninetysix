@@ -12,15 +12,19 @@ A few functionalities (the `Plate()` class, generally, and `parsers.well_regex()
 `ninetysix`'s main functionality is the `Plate` class.
 
 ### Data input
-The `Plate` class minimally takes data in the form of ordered well-value pairs and returns a `pandas DataFrame`. The data can be passed as two separate arrays using the keyword arguments (kwarg) `wells=` and `values=`, or passed as an ordered `numpy.ndarray` or an array of well-value tuples with the kwarg `data=`. The name of the value can be specified with the kwarg `values=`. The `data` kwarg also takes `pandas DataFrame`s with minimally the columns `well` and `value`, or value as a named column specified by either being the last column index (`df.columns[-1]`) or via the `values=` kwarg. Other columns will be returned in the final output and mostly ignored until further analysis. Additionally, `row` and `column` columns will be returned in the final tidy `DataFrame` for downstream analysis.
+The `Plate` class minimally takes data in the form of ordered well-value pairs and returns a `pandas DataFrame`. The data can be passed as two separate arrays using the keyword arguments (kwarg) `wells=` and `values=`, or passed as an ordered `numpy.ndarray` or an array of well-value tuples with the kwarg `data=`. The name of the value can be specified with the kwarg `value_name=`.
 
-### Annotation via `assign_wells` kwarg or method.
+The `data` kwarg also takes `pandas DataFrame`s with minimally the columns `well` and something else, or value as a named column specified by either being the last column index (`df.columns[-1]`) or via the `value_name=` kwarg. Other columns will be returned in the final output and mostly ignored until further analysis. Additionally, `row` and `column` columns will be returned in the final tidy `DataFrame` for downstream analysis.
+
+Passing a string will assume a path to a `pandas`-readable csv or excel file, which is detected and then read using the default settings. If more control over the import of this file is needed, read to a `pandas DataFrame` first, then pass this to `data=` kwarg.
+
+### Annotation via `assignments` kwarg or `assign_wells()` method.
 You can quickly annotate the exact condition of each well in one of two primary ways:
 
 #### Nested dictionary:
-Passing a nested dictionary to `assign_wells` will perform a flexible dictionary mapping that uses the outermost keys to create a new column with that key's name and the corresponding inner dictionary to annotate the wells with a corresponding value. Keys in the inner dictionaries are the wells used to assign the condition while the values are the condition values that are returned in within the `DataFrame`.  The keys support simple `regex`, such as `'[A-E][1-2]'` to specify `['A1', 'A2', 'B1', ..., 'E1', 'E2']`, or `'[A,C-E]1'` to specify (`['A1', 'C1', 'D1', 'E1']`), and combinations thereof.
+Passing a nested dictionary to `assignments` or `assign_wells()` will perform a flexible dictionary mapping that uses the outermost keys to create a new column with that key's name and the corresponding inner dictionary to annotate the wells with a corresponding value. Keys in the inner dictionaries are the wells used to assign the condition while the values are the condition values that are returned in within the `DataFrame`.  The keys support simple `regex`, such as `'[A-E][1-2]'` to specify `['A1', 'A2', 'B1', ..., 'E1', 'E2']`, or `'[A,C-E]1'` to specify (`['A1', 'C1', 'D1', 'E1']`), and combinations thereof.
 
-(Coming soon: setting a default value so as to not have to specify all wells.)
+Default values can be specified by including _one_ of the following keys: `(default, standard, else, other)`, and the wells not specified in the rest of your dictionary will take the value of that key. Otherwise, well keys not found in your dictionary get a value of `None`.
 
 #### Excel mapping file:
 (Coming soon.)
