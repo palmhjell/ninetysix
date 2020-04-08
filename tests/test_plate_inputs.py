@@ -101,6 +101,17 @@ def test_two_lists():
 
     assert ns.Plate(wells=wells, values=values)._passed
 
+    output_df = ns.Plate(wells=wells, values=values).df
+
+    desired_df = pd.DataFrame({
+        'well': ['A1', 'A2'],
+        'row': ['A', 'A'],
+        'column': [1, 2],
+        'value': [1, 2],
+    })
+    
+    assert output_df.equals(desired_df)
+
 def test_nonstring_well():
     wells = ['A1', 2]
     values = [1, 2]

@@ -208,6 +208,8 @@ class Plate():
                 self._value_name = 'value'
         elif (self._value_name is None) & (type(self.values) == str):
             self._value_name = self.values
+        elif (self._value_name is None) & (self.data is None):
+            self._value_name = 'value'
         return self._value_name
 
     def _move_values(self, df=None):
