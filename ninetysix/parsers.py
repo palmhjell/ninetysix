@@ -20,8 +20,8 @@ def well_regex(input_dict, padded=False):
     parsed_dict = input_dict.copy()
 
     # Deal with zero-padding in well
-    rows = list('ABCDEFGH')
-    cols = [pad(str(i), padded) for i in range(1, 13)]
+    rows = list('ABCDEFGHJLMNOP')
+    cols = [pad(str(i), padded) for i in range(1, 25)]
 
     # Set up a dictionary that can change during the loop
     working_dict = parsed_dict.copy()

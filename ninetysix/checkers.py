@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+from .parsers import well_regex, pad
+
 
 def check_inputs(Plate):
     """Checks that all inputs are provided correctly.
@@ -82,12 +84,43 @@ def check_inputs(Plate):
 
     return True
 
-def check_assignments(Plate):
+def check_assignments(Plate, assignments):
     """Checks that all assignments are specified correctly,
-    especialy in the context of the Plate input.
+    especially in the context of the Plate input.
 
     Returns True if all tests pass.
     """
-    if type(Plate.assignments) == dict:
-        pass
+    if type(assignments) == dict:
+
+        # Check keys
+        acceptable_kwargs = ('default', 'standard', 'else', 'other')
+        rows = list('ABCDEFGHIJKLMNOP')
+        cols = [pad(str(i), padded=Plate.zero_padding) for i in range(1, 25)]
+        acceptable_wells = set([row+col for row in rows for col in cols])
+        
+        for column in assignments.keys():
+            working_assignments = well_regex(assignments[column],
+                                             padded=Plate.zero_padding)
+            
+            nonwell_keys = set(working_assignments.keys()) - acceptable_wells
+            
+            if len(nonwell_keys) == 0:
+                continue
+
+            if len(nonwell_keys) > 1:
+                raise ValueError(
+                    f"Multiple non-well keys found in '{column}' dict. "\
+                    f'Provide only one of {acceptable_kwargs}.'
+                )
+
+            # Check identified key as default key
+            default_key = list(nonwell_keys)[0]
+
+            if default_key.lower() not in acceptable_kwargs:
+                raise ValueError(
+                    f"Non-well key ('{default_key}') found in '{column}' dict "\
+                    f'that does not match acceptable default arguments '
+                    f'({acceptable_kwargs}).'
+                )
+
     return True

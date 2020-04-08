@@ -116,7 +116,7 @@ class Plate():
         wells=None,
         values=None,
         value_name=None,
-        assign_wells=None,
+        assignments=None,
         lowercase=None,
         zero_padding=None,
         pandas_attrs=True,
@@ -131,6 +131,7 @@ class Plate():
         self.wells = wells
         self.values = values
         self._value_name = value_name
+        self._init_assignments = assignments
         self._passed = check_inputs(self)
         self._pandas_attrs = pandas_attrs
         
@@ -154,10 +155,9 @@ class Plate():
                     self._pandas_attrs = 'Failed due to import error'
 
             # Annotate
-            if assign_wells is not None:
-                self.assignments = assign_wells
-                self._assignment_pass = check_assignments(self)
-                self.assign_wells()
+            if self._init_assignments is not None:
+                check_assignments(self, self._init_assignments)
+                self.assign_wells(self._init_assignments, inplace=True)
 
 
 ###########################
@@ -169,6 +169,11 @@ class Plate():
 
     def __setitem__(self, key, value):
         self.df[key] = value
+
+    def __copy__(self):
+        copied = type(self)()
+        copied.__dict__.update(self.__dict__)
+        return copied
 
     def _repr_html_(self):
         return self.df._repr_html_()
@@ -328,27 +333,36 @@ class Plate():
 # Plate-specific methods
 ###########################
 
-    def assign_wells(self, assignments=None):
+    def assign_wells(self, assignments, inplace=False):
         """Takes either a nested dictionary or standardized excel
         spreadsheet (see ninetysix/templates) to assign new columns
         in the output DataFrame that provide addition information 
         about the contents or conditions of each well in the Plate.
         """
-        if assignments is None:
-            assignments = self.assignments
+        if not inplace:
+            self = self.copy()
 
-        assignment_type = type(assignments)
-        if assignment_type == dict:
-            
+        check_assignments(self, assignments)
+
+        if type(assignments) == dict:
             # Unpack dictionary and assign
             for column in assignments.keys():
                 working_assignments = well_regex(assignments[column],
                                                  padded=self.zero_padding)
 
+                # Check for default
+                default = None
+                acceptable_kwargs = ('default', 'standard', 'else', 'other')
+                for key in working_assignments.keys():
+                    if key.lower() in acceptable_kwargs:
+                        default = working_assignments[key]
+
                 # Make new columns
                 wells = self.df[self._standardize_case('well')]
                 self.df[column] = wells.map(working_assignments.get)
+                self.df[column] = self.df[column].replace({None: default})
 
         self._move_values()
-
-        return self
+        
+        if not inplace:
+            return self

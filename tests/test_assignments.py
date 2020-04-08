@@ -27,7 +27,7 @@ def test_simple_dict():
         'value': [1]
     })
 
-    output_df = ns.Plate(data=df, assign_wells=assignments).df
+    output_df = ns.Plate(data=df, assignments=assignments).df
 
     assert output_df.equals(desired_df)
 
@@ -52,7 +52,7 @@ def test_regex_dict():
         'value': [1, 2]
     })
 
-    output_df = ns.Plate(data=df, assign_wells=assignments).df
+    output_df = ns.Plate(data=df, assignments=assignments).df
 
     assert output_df.equals(desired_df)
 
@@ -76,8 +76,44 @@ def test_regex_dict_infer_padding():
         'value': [1, 2]
     })
 
-    output_df = ns.Plate(data=df, assign_wells=assignments).df
-    print(assignments)
-    print(output_df)
+    output_df = ns.Plate(data=df, assignments=assignments).df
 
     assert output_df.equals(desired_df)
+
+def test_assign_in_post():
+    df = pd.DataFrame({
+        'well': ['A1', 'A2'],
+        'value': [1, 2],
+    })
+
+    assignments = {
+        'condition': {
+            'A[1-2]': 1
+        }
+    }
+
+    desired_df_no_inplace = pd.DataFrame({
+        'well': ['A1', 'A2'],
+        'row': ['A', 'A'],
+        'column': [1, 2],
+        'value': [1, 2]
+    })
+
+    desired_df_w_inplace = pd.DataFrame({
+        'well': ['A1', 'A2'],
+        'row': ['A', 'A'],
+        'column': [1, 2],
+        'condition': [1, 1],
+        'value': [1, 2]
+    })
+
+    plate = ns.Plate(data=df)
+
+    plate_2 = plate.assign_wells(assignments)
+
+    assert plate.df.equals(desired_df_no_inplace)
+    assert plate_2.df.equals(desired_df_w_inplace)
+
+    plate.assign_wells(assignments, inplace=True)
+
+    assert plate.df.equals(desired_df_w_inplace)
