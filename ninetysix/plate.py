@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from .checkers import check_inputs, check_assignments
+from .checkers import check_inputs, check_assignments, check_df_col
 from .parsers import pad, well_regex
 from .pandas_attrs import _make_pandas_attrs
 
@@ -408,11 +408,10 @@ class Plate():
     def normalize(
         self,
         value=None,
-        condition=None,
         to=None,
         zero=None,
-        devs=False,
-        update_value=True,
+        # devs=False,
+        update_value=None,
         inplace=False,
     ):
         """Normalizes the value column to give the max a value of 1,
@@ -421,30 +420,102 @@ class Plate():
         'zero=True'. Alternatively, scales relative to a specific
         assignment of a condition column, i.e. to 'Standard' within
         the condition 'Controls' can be set to a value of 1.
-        Additionally can assign a lower 0 value in that same
-        condition, i.e., zero='Negative'.
+        Additionally can assign a lower 0 value in the same way.
         """
 
         if not inplace:
             self = self.copy()
 
-        # Assign value
+        # Determine how to update the value
+        ### TODO: does this need a warning for True when type(value) == list?
+        if update_value is None and type(value) != list:
+            update_value = True
+        if type(update_value) == str:
+            if update_value not in value:
+                raise ValueError(
+                    f"Given update value '{update_value}' not found in list of values to be normalized."
+                )
+        else:
+            update_value = False
+
+        # Get value list ready
         if not value:
             value = self.value_name
+        if type(value) != list:
+            values = [value]
+        else:
+            values = value
 
-        # Simplest normalization case
-        if condition is None and to is None:
+        # Iterate through each value
+        for value in values:
+            check_df_col(self, value, name='value')
+
             norm_string = f'normalized_{value}'
-            self.df[norm_string] = self.df[value] / self.df[value].max()
 
-            # Only when zero is exactly 'True'
+            # Set the zero val
             if zero == True:
-                self.df[norm_string] = self.df[norm_string] - \
-                    self.df[norm_string].min()
-        
+                zero_val = self.df[value].min()
+            elif type(zero) == str:
+                split = zero.split('=')
+                if len(split) != 2:
+                    raise ValueError(
+                        f"'zero' value specified incorrectly, must be of the form '[column_name]=[value_name]'."
+                    )
+
+                col, val = split
+
+                # Check that col in columns
+                check_df_col(self, col, name='column')
+
+                # Check that the given value is found in the column
+                if val not in [str(i) for i in self.df[col]]:
+                    raise ValueError(
+                        f"The value '{val}' is not a value in the column '{col}'."
+                    )
+                subset = [val == str(i) for i in self.df[col]]
+                zero_val = self.df[subset][value].mean()
+            elif zero == None or zero == False:
+                zero_val = 0
+            else:
+                raise TypeError(
+                    f"Type of 'zero' argument is incorrectly specified. Must be bool or string.")
+
+            self.df[norm_string] = self.df[value] - zero_val
+
+            # Set the one val
+            if not to:
+                one_val = self.df[norm_string].max()
+            elif type(to) == str:
+                split = to.split('=')
+                if len(split) != 2:
+                    raise ValueError(
+                        f"'to' value specified incorrectly, must be of the form '[column_name]=[value_name]'."
+                    )
+                
+                col, val = split
+                
+                # Check that col in columns
+                check_df_col(self, col, name='column')
+
+                # Check that the given value is found in the column
+                if val not in [str(i) for i in self.df[col]]:
+                    raise ValueError(
+                        f"The value '{val}' is not a value in the column '{col}'."
+                    )
+                subset = [val == str(i) for i in self.df[col]]
+                one_val = self.df[subset][norm_string].mean()
+            else:
+                raise TypeError(f"Type of 'to' argument is incorrectly specified. Must be bool or string.")
+
+            self.df[norm_string] = self.df[norm_string] / one_val
+
         # Clean up
         if update_value:
-            self._value_name = norm_string
+            if type(update_value) == str:
+                update_string = f'normalized_{update_value}'
+            else:
+                update_string = norm_string
+            self._value_name = update_string
 
         self._standardize_df()
 

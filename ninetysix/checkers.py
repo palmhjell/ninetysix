@@ -124,3 +124,18 @@ def check_assignments(Plate, assignments):
                 )
 
     return True
+
+def check_df_col(Plate, column, name=None):
+    """Checks for the presence of a column (or columns) in a tidy
+    DataFrame with an informative error message. Passes silently,
+    otherwise raises error.
+    """
+    if name is None:
+        error_message = f"The value '{column}' is not present in any of your data's columns."
+    else:
+        error_message = f"Your {name} '{column}' is not present in any of your data's columns."
+    error_message += "\nYou may be looking for:\n  " + \
+        str(list(Plate.df.columns))
+
+    if column not in Plate.df.columns:
+        raise ValueError(error_message)
