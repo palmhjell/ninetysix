@@ -213,16 +213,21 @@ class Plate():
         """Sets value name from 'value_name', 'values', or sets to 'value',
         unless obtained from the final column of a DataFrame.
         """
-        if (self._value_name is None) & (self.values is None):
-            if type(self.data) == type(pd.DataFrame()):
-                self._value_name = self.data.columns[-1]
-            else:
+        if self._value_name is None:
+            if self.values is None:
+                if type(self.data) == type(pd.DataFrame()):
+                    self._value_name = self.data.columns[-1]
+                else:
+                    self._value_name = 'value'
+            elif type(self.values) == str:
+                self._value_name = self.values
+            elif self.data is None:
                 self._value_name = 'value'
-        elif (self._value_name is None) & (type(self.values) == str):
-            self._value_name = self.values
-        elif (self._value_name is None) & (self.data is None):
-            self._value_name = 'value'
         return self._value_name
+
+    @value_name.setter
+    def value_name(self, value):
+        self._value_name = value
 
     @property
     def lowercase(self):
@@ -336,12 +341,9 @@ class Plate():
             self.df.insert(1, name, val)
 
         # Move values to -1 index
-        if self.value_name is None:
-            self._value_name = self.df.columns[-1]
-        else:
-            values = self.df[self.value_name]
-            del self.df[self.value_name]
-            self.df[self.value_name] = values
+        values = self.df[self.value_name]
+        del self.df[self.value_name]
+        self.df[self.value_name] = values
         
         return self.df
 
@@ -399,5 +401,52 @@ class Plate():
 
         self._standardize_df()
         
+        if not inplace:
+            return self
+
+
+    def normalize(
+        self,
+        value=None,
+        condition=None,
+        to=None,
+        zero=None,
+        devs=False,
+        update_value=True,
+        inplace=False,
+    ):
+        """Normalizes the value column to give the max a value of 1,
+        returning a new column named 'normalized_[value]'. Accepts
+        different value kwargs and can explicitly scale from 0 to 1
+        'zero=True'. Alternatively, scales relative to a specific
+        assignment of a condition column, i.e. to 'Standard' within
+        the condition 'Controls' can be set to a value of 1.
+        Additionally can assign a lower 0 value in that same
+        condition, i.e., zero='Negative'.
+        """
+
+        if not inplace:
+            self = self.copy()
+
+        # Assign value
+        if not value:
+            value = self.value_name
+
+        # Simplest normalization case
+        if condition is None and to is None:
+            norm_string = f'normalized_{value}'
+            self.df[norm_string] = self.df[value] / self.df[value].max()
+
+            # Only when zero is exactly 'True'
+            if zero == True:
+                self.df[norm_string] = self.df[norm_string] - \
+                    self.df[norm_string].min()
+        
+        # Clean up
+        if update_value:
+            self._value_name = norm_string
+
+        self._standardize_df()
+
         if not inplace:
             return self
