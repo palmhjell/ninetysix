@@ -224,15 +224,6 @@ class Plate():
             self._value_name = 'value'
         return self._value_name
 
-    def _move_values(self, df=None):
-        """Moves values to -1 index"""
-        if df is None:
-            df = self.df
-        values = df[self.value_name]
-        del df[self.value_name]
-        df[self.value_name] = values
-        return df
-
     @property
     def lowercase(self):
         """Highest priority case-setter for new columns."""
@@ -313,27 +304,46 @@ class Plate():
         self._well_list = [well[0]+pad(well[1:], padded=self.zero_padding)
                 for well in self._well_list]
 
-        # Standardize 0 and -1 index for well and value
-        del df[well_string]
-        df.insert(0, well_string, self._well_list)
-
-        if self.value_name is None:
-            self._value_name = df.columns[-1]
-        else:
-            df = self._move_values(df)
-
-        # Add rows and columns, if they don't exist
-        col_check = [col for col in df.columns if col == 'row' or col == 'column']
-        if not col_check:
-            rows, cols = zip(*df[well_string].apply(
-                lambda well: (well[0], int(well[1:]))
-            ))
-
-            for val, name in zip((cols, rows), ('column', 'row')):
-                name = self._standardize_case(name)
-                df.insert(1, name, val)
+        # Standardize layout
+        self._standardize_df(df)
 
         return df
+
+    def _standardize_df(self, df=None):
+        """Moves 'well', 'row', 'column' to 0, 1, 2 and 'value' to -1 index"""
+        if df is not None:
+            self.df = df
+
+        # Use given case
+        well_string = self._standardize_case('well')
+
+        # Standardize 0 index for well
+        del self.df[well_string]
+        self.df.insert(0, well_string, self._well_list)
+
+        # Add rows and columns to 1 and 2 index
+        col_check = [col for col in self.df.columns if col ==
+                     'row' or col == 'column']
+
+        rows, cols = zip(*self.df[well_string].apply(
+            lambda well: (well[0], int(well[1:]))
+        ))
+
+        for val, name in zip((cols, rows), ('column', 'row')):
+            name = self._standardize_case(name)
+            if col_check:
+                del self.df[name]
+            self.df.insert(1, name, val)
+
+        # Move values to -1 index
+        if self.value_name is None:
+            self._value_name = self.df.columns[-1]
+        else:
+            values = self.df[self.value_name]
+            del self.df[self.value_name]
+            self.df[self.value_name] = values
+        
+        return self.df
 
 
 ###########################
@@ -343,8 +353,23 @@ class Plate():
     def assign_wells(self, assignments, inplace=False):
         """Takes either a nested dictionary or standardized excel
         spreadsheet (see ninetysix/templates) to assign new columns
-        in the output DataFrame that provide addition information 
+        in the output DataFrame that provide additional information 
         about the contents or conditions of each well in the Plate.
+
+        Parameters
+        ----------
+        assignments : nested dictionary or excel sheet
+            A mapping that assigns conditions to wells. For a nested
+            dictionary, the outer key(s) will be the name of the condition
+            which results in a new DataFrame column for each condition
+            and each inner dictionary should contain key-value pairs
+            where the keys either a well/regex-like well (e.g., A1 or
+            [A-C]1) or a default ('default', 'standard', 'else', 'other')
+            and the values are the value of the specific well
+            for that condition. For an excel sheet, it should be from
+            a template (https://github.com/palmhjell/ninetysix/templates).
+        inplace : bool, default False
+            Whether to return a new object or act on the object in place.
         """
         if not inplace:
             self = self.copy()
@@ -369,7 +394,10 @@ class Plate():
                 self.df[column] = wells.map(working_assignments.get)
                 self.df[column] = self.df[column].replace({None: default})
 
-        self._move_values()
+        else:
+            print('Non-dict functionality is not yet supported.')
+
+        self._standardize_df()
         
         if not inplace:
             return self

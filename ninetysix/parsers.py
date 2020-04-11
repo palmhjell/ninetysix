@@ -5,16 +5,30 @@ def pad(col, padded=True):
     (e.g., A1 <-> A01)
     """
     # Standardize to int, then back to str
-    if type(col) != int:
-        col = str(int(col))
+    col = str(int(col))
     if padded:
         if len(col) == 1:
             col = '0'+col
     return col
 
 def well_regex(input_dict, padded=False):
-    """Parses simple regex-like syntax for
-    well keys in an assignment dictionary.
+    """Parses simple regex-like syntax for well keys in a
+    dictionary and expands it. Accepts up to 396-well plate
+    nomenclature (A–P, 1–24). If no regex-like structure is
+    detected, will return the same dictionary.
+
+    Parameters
+    ----------
+    input_dict : dictionary
+        A dictionary potentially containing keys of the form
+        '[A-E][1-10]', which would expand to 50 keys of the form
+        'A1', 'A2', ... , 'E9', 'E10', each with the same value as
+        the original key.
+    padded : bool, default False
+        Whether or not to zero pad the wells, i.e., return keys of
+        the form 'A01', 'A02', ... , 'E09', 'E10'. Will occur
+        regardless of the regex key form (both '[A-E][1-10]' and
+        '[A-E][01-10]' will return A1 if padded=False, else A01.  
     """
     # Set up the new dict
     parsed_dict = input_dict.copy()
