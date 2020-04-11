@@ -252,3 +252,45 @@ def test_read_excel():
     plate = ns.Plate('temp.xlsx')
 
     os.remove('temp.xlsx')
+
+def test_contains_row_col():
+    
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'row': ['A'],
+        'column': [1],
+        'value': [1],
+    })
+
+    desired_df = pd.DataFrame({
+        'well': ['A1'],
+        'row': ['A'],
+        'column': [1],
+        'value': [1],
+    })
+
+    output_df = ns.Plate(data=df).df
+
+    assert output_df.equals(desired_df)
+
+
+def test_moves_row_col():
+
+    df = pd.DataFrame({
+        'well': ['A1'],
+        'value': [1],
+        'row': ['A'],
+        'column': [1],
+    })
+
+    desired_df = pd.DataFrame({
+        'well': ['A1'],
+        'row': ['A'],
+        'column': [1],
+        'value': [1],
+    })
+
+    output_df = ns.Plate(data=df, value_name='value').df
+
+    assert output_df.equals(desired_df)
+
