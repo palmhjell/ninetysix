@@ -88,7 +88,7 @@ def check_assignments(Plate, assignments):
     """Checks that all assignments are specified correctly,
     especially in the context of the Plate input.
 
-    Returns True if all tests pass.
+    Returns assignment type if all tests pass.
     """
     if type(assignments) == dict:
 
@@ -122,8 +122,23 @@ def check_assignments(Plate, assignments):
                     f'that does not match acceptable default arguments '
                     f'({acceptable_kwargs}).'
                 )
+        # Assign type if passes
+        assignment_type = dict
+    
+    elif type(assignments) == str:
 
-    return True
+        # TODO(check stuff)
+        
+        # Assign type if passes
+        assignment_type = 'excel'
+
+    else:
+        raise NotImplementedError(
+            'Only dictionary and excel-based mapping assignments are '
+            'currently supported.'
+        )
+
+    return assignment_type
 
 def check_df_col(Plate, column, name=None):
     """Checks for the presence of a column (or columns) in a tidy

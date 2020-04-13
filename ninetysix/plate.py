@@ -376,9 +376,9 @@ class Plate():
         if not inplace:
             self = self.copy()
 
-        check_assignments(self, assignments)
+        assignment_type = check_assignments(self, assignments)
 
-        if type(assignments) == dict:
+        if assignment_type == dict:
             # Unpack dictionary and assign
             for column in assignments.keys():
                 working_assignments = well_regex(assignments[column],
@@ -396,8 +396,51 @@ class Plate():
                 self.df[column] = wells.map(working_assignments.get)
                 self.df[column] = self.df[column].replace({None: default})
 
-        else:
-            print('Non-dict functionality is not yet supported.')
+        elif assignment_type == 'excel':
+
+            # Read the mapping spreadsheet
+            df_map = pd.read_excel(assignments, sheet_name=0, index_col=[1, 0])
+
+            # Initialize lists (only 96-well right now)
+            rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+            df_list = []
+
+            # Iterate through each row index
+            for row in rows:
+
+                # Get tidy data from each row
+                working_df = df_map.loc[row].T
+
+                # Add which row it is
+                working_df['Row'] = row
+
+                # Add to list for later concat
+                df_list.append(working_df)
+
+            # Create a new DataFrame
+            df_map = pd.concat(df_list, sort=True)
+
+            # Get columns from index
+            df_map.index.name = 'Column'
+            df_map.reset_index(inplace=True)
+
+            # Add Well column
+            df_map['Well'] = df_map['Row'] + \
+                [pad(col, self.zero_padding) for col in df_map['Column']]
+
+            # Drop columns that are *entirely* nans
+            df_map.dropna(axis='columns', how='all', inplace=True)
+
+            # Switch to None
+            df_map.replace({np.nan: None}, inplace=True)
+
+            # Standardize case and merge
+            df_map.columns = [self._standardize_case(col) for col in df_map.columns]
+
+            mergers = [self._standardize_case(
+                col) for col in ['Well', 'Column', 'Row']]
+
+            self.df = self.df.merge(df_map, on=mergers)
 
         self._standardize_df()
         
