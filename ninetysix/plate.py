@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from .checkers import check_inputs, check_assignments, check_df_col
 from .parsers import pad, well_regex
-from .pandas_attrs import _make_pandas_attrs
+from .util import check_inputs, check_assignments, check_df_col
+from .util._pandas_attrs import _make_pandas_attrs
 
 
 class Plate():

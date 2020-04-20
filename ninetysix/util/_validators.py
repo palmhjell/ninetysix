@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from .parsers import well_regex, pad
+from ..parsers import well_regex, pad
 
 
 def check_inputs(Plate):
