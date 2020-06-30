@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from .parsers import pad, well_regex
+from .parsers import pad, _infer_padding, well_regex
 from .util import check_inputs, check_assignments, check_df_col
 from .util._pandas_attrs import _make_pandas_attrs
 
@@ -280,16 +280,10 @@ class Plate():
             
             self._zero_padding = False
         
-            for well in self._well_list:
-
-                # Check int conversion
-                col = well[1:]
-                if col != str(int(col)):
-                    self._zero_padding = True
-
-                # Check lengths
-                if len(well) < 3:
-                    self._zero_padding = False
+            padded = [True for well in self._well_list if _infer_padding(well)]
+            
+            if padded:
+                self._zero_padding = True
 
         return self._zero_padding
 
