@@ -60,7 +60,7 @@ def well_regex(input_dict, padded=None):
     # Set up the new dict
     parsed_dict = input_dict.copy()
 
-    # Deal with zero-padding in well
+    # Acceptable values to search
     rows = list('ABCDEFGHJLMNOP')
     cols = [str(i) for i in range(1, 25)]
 
@@ -118,7 +118,23 @@ def well_regex(input_dict, padded=None):
                     
                     # Append range to list
                     if len(hyphen_split) > 1:
-                        col_range = cols[cols.index(hyphen_split[0]):cols.index(hyphen_split[1])+1]
+                        padding = set([_infer_padding(('_'+val))
+                                    for val in hyphen_split
+                                    if int(val) < 10])
+
+                        if len(padding) > 1:
+                            raise ValueError(
+                            f'Inconsistent zero padding in "{col_vals}"; '\
+                            'use the same form for best results.'
+                        )
+
+                        if all(padding):
+                            cols = [pad('_'+col)[1:] for col in cols]
+
+                        start = cols.index(hyphen_split[0])
+                        end = cols.index(hyphen_split[1])+1
+
+                        col_range = cols[start:end]
                         matching_cols += col_range
                     
                     # Else append single value to list
@@ -152,7 +168,10 @@ def well_regex(input_dict, padded=None):
         padded_dict = parsed_dict.copy()
         for well in parsed_dict:
             value = padded_dict.pop(well)
-            padded_dict[pad(well)] = value
+            try:
+                padded_dict[pad(well)] = value
+            except ValueError:
+                padded_dict[well] = value
     
         parsed_dict = padded_dict
 
