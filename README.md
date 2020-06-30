@@ -18,16 +18,16 @@ The `data` kwarg also takes a `pandas DataFrame` with minimally the columns `wel
 
 Passing a string to `data` will assume a path to a `pandas`-readable csv or excel file, which is detected and then read using the default settings of `pandas.read_csv()` or `pandas.read_excel()`. If more control over the import of this file is needed, read to a `pandas DataFrame` first, then pass this to `data=` kwarg.
 
-### Annotation via `assignments` kwarg or `assign_wells()` method.
+### Annotation via `annotate` kwarg or `annotate_wells()` method.
 You can quickly annotate the exact condition of each well in one of two primary ways. These are outlined in more detail in `ninetysix.templates`.
 
 #### Nested dictionary:
-Passing a nested dictionary to `assignments` or `assign_wells()` will perform a flexible dictionary mapping that uses the outermost keys to create a new column with that key's name and the corresponding inner dictionary to annotate the wells with a corresponding value. Keys in the inner dictionaries are the wells used to assign the condition while their values are matched within the plate.  The keys support simple `regex`, such as `'[A-E][1-2]'` to specify `['A1', 'A2', 'B1', ..., 'E1', 'E2']`, or `'[A,C-E]1'` to specify (`['A1', 'C1', 'D1', 'E1']`), and combinations thereof.
+Passing a nested dictionary to `annotate` or `annotate_wells()` will perform a flexible dictionary mapping that uses the outermost keys to create a new column with that key's name and the corresponding inner dictionary to annotate the wells with a corresponding value. Keys in the inner dictionaries are the wells used to assign the condition while their values are matched within the plate.  The keys support simple `regex`, such as `'[A-E][1-2]'` to specify `['A1', 'A2', 'B1', ..., 'E1', 'E2']`, or `'[A,C-E]1'` to specify (`['A1', 'C1', 'D1', 'E1']`), and combinations thereof.
 
 Default values can be specified by including _one_ of the following keys: `(default, standard, else, other)`, and the wells not specified in the rest of your dictionary will take the value of that key. Otherwise, well keys not found in your dictionary get a value of `None`.
 
 #### Excel mapping file:
-The method `assign_wells()` also can take an excel spreadsheet to map wells to values. An example has been set up and filled out as shown in the `mapping.xlsx` file in `templates/`. All wells that match this condition will then be annotated with this information in the returned `Plate` object.
+The method `annotate_wells()` also can take an excel spreadsheet to map wells to values. An example has been set up and filled out as shown in the `mapping.xlsx` file in `templates/`. All wells that match this condition will then be annotated with this information in the returned `Plate` object.
 
 ### `Plate` methods/support classes
 #### Processing

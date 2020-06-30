@@ -1,1 +1,1 @@
-from ._validators import check_inputs, check_assignments, check_df_col
+from ._validators import check_inputs, check_annotations, check_df_col

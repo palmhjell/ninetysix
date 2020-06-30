@@ -13,7 +13,7 @@ def test_simple_dict():
         'value': [1],
     })
 
-    assignments = {
+    annotations = {
         'condition' : {
             'A1': 1
         }
@@ -27,7 +27,7 @@ def test_simple_dict():
         'value': [1]
     })
 
-    output_df = ns.Plate(data=df, assignments=assignments).df
+    output_df = ns.Plate(data=df, annotate=annotations).df
 
     assert output_df.equals(desired_df)
 
@@ -38,7 +38,7 @@ def test_regex_dict():
         'value': [1, 2],
     })
 
-    assignments = {
+    annotations = {
         'condition' : {
             'A[1-2]': 1
         }
@@ -52,7 +52,7 @@ def test_regex_dict():
         'value': [1, 2]
     })
 
-    output_df = ns.Plate(data=df, assignments=assignments).df
+    output_df = ns.Plate(data=df, annotate=annotations).df
 
     assert output_df.equals(desired_df)
 
@@ -62,7 +62,7 @@ def test_regex_dict_infer_padding():
         'value': [1, 2],
     })
 
-    assignments = {
+    annotations = {
         'condition' : {
             'A[1-2]': 1
         }
@@ -76,7 +76,7 @@ def test_regex_dict_infer_padding():
         'value': [1, 2]
     })
 
-    output_df = ns.Plate(data=df, assignments=assignments).df
+    output_df = ns.Plate(data=df, annotate=annotations).df
 
     assert output_df.equals(desired_df)
 
@@ -86,7 +86,7 @@ def test_assign_in_post():
         'value': [1, 2],
     })
 
-    assignments = {
+    annotations = {
         'condition': {
             'A[1-2]': 1
         }
@@ -109,11 +109,11 @@ def test_assign_in_post():
 
     plate = ns.Plate(data=df)
 
-    plate_2 = plate.assign_wells(assignments)
+    plate_2 = plate.annotate_wells(annotations)
 
     assert plate.df.equals(desired_df_no_inplace)
     assert plate_2.df.equals(desired_df_w_inplace)
 
-    plate.assign_wells(assignments, inplace=True)
+    plate.annotate_wells(annotations, inplace=True)
 
     assert plate.df.equals(desired_df_w_inplace)

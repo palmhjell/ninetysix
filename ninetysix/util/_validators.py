@@ -84,13 +84,13 @@ def check_inputs(Plate):
 
     return True
 
-def check_assignments(Plate, assignments):
-    """Checks that all assignments are specified correctly,
+def check_annotations(Plate, annotations):
+    """Checks that all annotations are specified correctly,
     especially in the context of the Plate input.
 
-    Returns assignment type if all tests pass.
+    Returns annotation type if all tests pass.
     """
-    if type(assignments) == dict:
+    if isinstance(annotations, dict):
 
         # Check keys
         acceptable_kwargs = ('default', 'standard', 'else', 'other')
@@ -100,11 +100,11 @@ def check_assignments(Plate, assignments):
         acceptable_wells += [pad(row+col) for row in rows for col in cols]
         acceptable_wells = set(acceptable_wells)
         
-        for column in assignments.keys():
-            working_assignments = well_regex(assignments[column],
+        for column in annotations.keys():
+            working_annotations = well_regex(annotations[column],
                                              padded=Plate.zero_padding)
             
-            nonwell_keys = set(working_assignments.keys()) - acceptable_wells
+            nonwell_keys = set(working_annotations.keys()) - acceptable_wells
             
             if len(nonwell_keys) == 0:
                 continue
@@ -125,22 +125,22 @@ def check_assignments(Plate, assignments):
                     f'({acceptable_kwargs}).'
                 )
         # Assign type if passes
-        assignment_type = dict
+        annotation_type = dict
     
-    elif type(assignments) == str:
+    elif isinstance(annotations, str):
 
         # TODO(check stuff)
         
         # Assign type if passes
-        assignment_type = 'excel'
+        annotation_type = 'excel'
 
     else:
         raise NotImplementedError(
-            'Only dictionary and excel-based mapping assignments are '
+            'Only dictionary and excel-based mapping annotations are '
             'currently supported.'
         )
 
-    return assignment_type
+    return annotation_type
 
 def check_df_col(Plate, column, name=None):
     """Checks for the presence of a column (or columns) in a tidy

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from .parsers import pad, _infer_padding, well_regex
-from .util import check_inputs, check_assignments, check_df_col
+from .util import check_inputs, check_annotations, check_df_col
 from .util._pandas_attrs import _make_pandas_attrs
 
 
@@ -39,7 +39,7 @@ class Plate():
         assigned with 'value_name' kwarg.
     value_name : string
         Non-ambiguous specification or assignment of value name.
-    assignments : nested dictionary or template excel file
+    annotate : nested dictionary or template excel file
         Maps wells to conditions in new columns of a tidy DataFrame. The
         outermost keys give the name of the resulting column. The inner
         keys are the wells corresponding to a given condition/value.
@@ -49,7 +49,7 @@ class Plate():
         of (default, standard, else, other), and the value of this key will
         be assigned to all other non-specified wells (else they get a value
         of `None`). Also takes a specific excel spreadsheet format; see the
-        assign_wells() method or  parsers.well_regex() function for more
+        annotate_wells() method or  parsers.well_regex() function for more
         details.
     lowercase : bool
         Whether or not auto-generated columns (such as 'row' and 'column'
@@ -111,7 +111,7 @@ class Plate():
     ...         'A2': 'Negative',
     ...     }
     ... }
-    >>> ns.Plate(data=input_dict, values='area', assignments=controls)
+    >>> ns.Plate(data=input_dict, values='area', annotate=controls)
         well    row   column      RT       controls    area
     0   'A1'    'A'        1    0.42   'Experiment'       1
     1   'A2'    'A'        2    0.41     'Negative'     0.5
@@ -123,7 +123,7 @@ class Plate():
         wells=None,
         values=None,
         value_name=None,
-        assignments=None,
+        annotate=None,
         lowercase=None,
         zero_padding=None,
         pandas_attrs=True,
@@ -138,7 +138,7 @@ class Plate():
         self.wells = wells
         self.values = values
         self._value_name = value_name
-        self._init_assignments = assignments
+        self._init_annotations = annotate
         self._passed = check_inputs(self)
         self._pandas_attrs = pandas_attrs
         
@@ -167,10 +167,10 @@ class Plate():
                     self._pandas_attrs = 'Failed due to import error'
 
             # Annotate
-            if self._init_assignments is not None:
-                check_assignments(self, self._init_assignments)
+            if self._init_annotations is not None:
+                check_annotations(self, self._init_annotations)
                 # self.
-                self.assign_wells(self._init_assignments, inplace=True)
+                self.annotate_wells(self._init_annotations, inplace=True)
 
             # Create multi-index DataFrame
 
@@ -206,9 +206,9 @@ class Plate():
         """
         if isinstance(self._data, type(zip())):
             self._data = list(self._data)
-        if type(self._data) == dict:
+        if isinstance(self._data, dict):
             self._data = pd.DataFrame(self._data)
-        if type(self._data) == str:
+        if isinstance(self._data, str):
             extension = self._data.split('.')[-1]
             if extension == 'csv':
                 self._data = pd.read_csv(self._data)
@@ -297,9 +297,9 @@ class Plate():
         # Use given case
         well_string = self._standardize_case('well')
 
-        if type(self.data) == type(pd.DataFrame()):
+        if isinstance(self.data, pd.DataFrame):
             df = self.data
-        elif type(self.values) == str:
+        elif isinstance(self.values, str):
             df = pd.DataFrame(data=self.data, columns=[well_string, self.value_name])
         else:
             if self.wells is not None:
@@ -355,7 +355,7 @@ class Plate():
 # Plate-specific methods
 ###########################
 
-    def assign_wells(self, assignments, inplace=False):
+    def annotate_wells(self, annotations, inplace=False):
         """Takes either a nested dictionary or standardized excel
         spreadsheet (see ninetysix/templates) to assign new columns
         in the output DataFrame that provide additional information 
@@ -363,7 +363,7 @@ class Plate():
 
         Parameters
         ----------
-        assignments : nested dictionary or excel sheet
+        annotations : nested dictionary or excel sheet
             A mapping that assigns conditions to wells. For a nested
             dictionary, the outer key(s) will be the name of the condition
             which results in a new DataFrame column for each condition
@@ -379,30 +379,31 @@ class Plate():
         if not inplace:
             self = self.copy()
 
-        assignment_type = check_assignments(self, assignments)
+        # Check that everything passes, return type.
+        annotation_type = check_annotations(self, annotations)
 
-        if assignment_type == dict:
+        if annotation_type == dict:
             # Unpack dictionary and assign
-            for column in assignments.keys():
-                working_assignments = well_regex(assignments[column],
+            for column in annotations.keys():
+                working_annotations = well_regex(annotations[column],
                                                  padded=self.zero_padding)
 
                 # Check for default
                 default = None
                 acceptable_kwargs = ('default', 'standard', 'else', 'other')
-                for key in working_assignments.keys():
+                for key in working_annotations.keys():
                     if key.lower() in acceptable_kwargs:
-                        default = working_assignments[key]
+                        default = working_annotations[key]
 
                 # Make new columns
                 wells = self.df[self._standardize_case('well')]
-                self.df[column] = wells.map(working_assignments.get)
+                self.df[column] = wells.map(working_annotations.get)
                 self.df[column] = self.df[column].replace({None: default})
 
-        elif assignment_type == 'excel':
+        elif annotation_type == 'excel':
 
             # Read the mapping spreadsheet
-            df_map = pd.read_excel(assignments, sheet_name=0, index_col=[1, 0])
+            df_map = pd.read_excel(annotations, sheet_name=0, index_col=[1, 0])
 
             # Initialize lists (only 96-well right now)
             rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -428,8 +429,7 @@ class Plate():
             df_map.reset_index(inplace=True)
 
             # Add Well column
-            df_map['Well'] = df_map['Row'] + \
-                [pad(col, self.zero_padding) for col in df_map['Column']]
+            df_map['Well'] = pad(df_map['Row'] + df_map['Column'], self.zero_padding)
 
             # Drop columns that are *entirely* nans
             df_map.dropna(axis='columns', how='all', inplace=True)
