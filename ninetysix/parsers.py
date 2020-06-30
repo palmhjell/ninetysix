@@ -1,17 +1,43 @@
 from itertools import product
 
-def pad(col, padded=True):
+def pad(well, padded=True):
     """Converts to or from zero-padded column names
     (e.g., A1 <-> A01)
     """
-    # Standardize to int, then back to str
+    # Get row and column
+    row = well[0]
+    col = well[1:]
+
+    # Convert to int then to str (gives non-padded)
     col = str(int(col))
+
+    # Pad
     if padded:
         if len(col) == 1:
             col = '0'+col
-    return col
 
-def well_regex(input_dict, padded=False):
+    well = row+col
+    
+    return well
+
+def _infer_padding(well):
+    """Guesses if a well is padded (A01) or not (A1). Returns False
+    if it cannot be guessed (on double-digit column).
+    """
+    # Assume False
+    padded = False
+
+    row = well[0]
+    str_col = well[1:]
+    int_col = str(int(str_col))
+
+    # Return True is str form != int form
+    if len(str_col) != len(int_col):
+        padded = True
+
+    return padded
+
+def well_regex(input_dict, padded=None):
     """Parses simple regex-like syntax for well keys in a
     dictionary and expands it. Accepts up to 396-well plate
     nomenclature (A–P, 1–24). If no regex-like structure is
@@ -24,18 +50,19 @@ def well_regex(input_dict, padded=False):
         '[A-E][1-10]', which would expand to 50 keys of the form
         'A1', 'A2', ... , 'E9', 'E10', each with the same value as
         the original key.
-    padded : bool, default False
+    padded : bool, default None
         Whether or not to zero pad the wells, i.e., return keys of
         the form 'A01', 'A02', ... , 'E09', 'E10'. Will occur
         regardless of the regex key form (both '[A-E][1-10]' and
-        '[A-E][01-10]' will return A1 if padded=False, else A01.  
+        '[A-E][01-10]' will return A1 if padded=False, else A01.
+        If None, infers padding from inputs if possible. 
     """
     # Set up the new dict
     parsed_dict = input_dict.copy()
 
     # Deal with zero-padding in well
     rows = list('ABCDEFGHJLMNOP')
-    cols = [pad(str(i), padded) for i in range(1, 25)]
+    cols = [str(i) for i in range(1, 25)]
 
     # Set up a dictionary that can change during the loop
     working_dict = parsed_dict.copy()
@@ -86,8 +113,8 @@ def well_regex(input_dict, padded=False):
                 comma_split = col_vals.split(',')
                 for col_set in comma_split:
                     
-                    # Get the range (need to pad here)
-                    hyphen_split = [pad(val, padded) for val in col_set.split('-')]
+                    # Get the range
+                    hyphen_split = [val for val in col_set.split('-')]
                     
                     # Append range to list
                     if len(hyphen_split) > 1:
@@ -99,7 +126,12 @@ def well_regex(input_dict, padded=False):
                         matching_cols += hyphen_split
 
             else:
-                matching_cols = [pad(col, padded) for col in assignment[-1]]
+                if row:
+                    col_start = assignment.find(']')
+                else:
+                    col_start = 0
+                
+                matching_cols = [assignment[col_start+1:]]
 
             wells = [''.join(well)
                 for well in product(matching_rows, matching_cols)]
@@ -110,5 +142,18 @@ def well_regex(input_dict, padded=False):
         
         for well in wells:
             parsed_dict[well] = value
+
+    # Infer padding
+    if padded is None:
+        padded = [True for well in parsed_dict
+                   if _infer_padding(well)]
+    # Pad
+    if padded:
+        padded_dict = parsed_dict.copy()
+        for well in parsed_dict:
+            value = padded_dict.pop(well)
+            padded_dict[pad(well)] = value
+    
+        parsed_dict = padded_dict
 
     return parsed_dict

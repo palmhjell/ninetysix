@@ -95,8 +95,10 @@ def check_assignments(Plate, assignments):
         # Check keys
         acceptable_kwargs = ('default', 'standard', 'else', 'other')
         rows = list('ABCDEFGHIJKLMNOP')
-        cols = [pad(str(i), padded=Plate.zero_padding) for i in range(1, 25)]
-        acceptable_wells = set([row+col for row in rows for col in cols])
+        cols = [str(i) for i in range(1, 25)]
+        acceptable_wells = [row+col for row in rows for col in cols]
+        acceptable_wells += [pad(row+col) for row in rows for col in cols]
+        acceptable_wells = set(acceptable_wells)
         
         for column in assignments.keys():
             working_assignments = well_regex(assignments[column],

@@ -148,6 +148,11 @@ class Plate():
             self._lowercase = lowercase
             self._well_lowercase = self._get_well_case()
 
+            # Three highest-level indexes
+            self._locations = [self._standardize_case(loc) for loc in ('well', 'row', 'column')]
+            self._annotations = []
+            self._values = []
+
             # Determine if zero-padded
             self._zero_padding = zero_padding
 
@@ -164,7 +169,11 @@ class Plate():
             # Annotate
             if self._init_assignments is not None:
                 check_assignments(self, self._init_assignments)
+                # self.
                 self.assign_wells(self._init_assignments, inplace=True)
+
+            # Create multi-index DataFrame
+
 
 
 ###########################
@@ -306,7 +315,7 @@ class Plate():
             df = pd.DataFrame(data=data, columns=[well_string, self.value_name])
 
         # Apply padding
-        self._well_list = [well[0]+pad(well[1:], padded=self.zero_padding)
+        self._well_list = [pad(well, padded=self.zero_padding)
                 for well in self._well_list]
 
         # Standardize layout
@@ -470,16 +479,16 @@ class Plate():
             self = self.copy()
 
         # Determine how to update the value
-        ### TODO: does this need a warning for True when type(value) == list?
+        # TODO: does this need a warning for True when type(value) == list?
         if update_value is None and type(value) != list:
             update_value = True
-        if type(update_value) == str:
-            if update_value not in value:
-                raise ValueError(
-                    f"Given update value '{update_value}' not found in list of values to be normalized."
-                )
-        else:
-            update_value = False
+            if type(update_value) == str:
+                if update_value not in value:
+                    raise ValueError(
+                        f"Given update value '{update_value}' not found in list of values to be normalized."
+                    )
+            else:
+                update_value = False
 
         # Get value list ready
         if not value:
