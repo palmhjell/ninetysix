@@ -14,7 +14,7 @@ def test_simple_dict():
     })
 
     annotations = {
-        'condition' : {
+        'condition': {
             'A1': 1
         }
     }
@@ -39,7 +39,7 @@ def test_regex_dict():
     })
 
     annotations = {
-        'condition' : {
+        'condition': {
             'A[1-2]': 1
         }
     }
@@ -63,7 +63,7 @@ def test_regex_dict_infer_padding():
     })
 
     annotations = {
-        'condition' : {
+        'condition': {
             'A[1-2]': 1
         }
     }
@@ -92,14 +92,7 @@ def test_assign_in_post():
         }
     }
 
-    desired_df_no_inplace = pd.DataFrame({
-        'well': ['A1', 'A2'],
-        'row': ['A', 'A'],
-        'column': [1, 2],
-        'value': [1, 2]
-    })
-
-    desired_df_w_inplace = pd.DataFrame({
+    desired_df = pd.DataFrame({
         'well': ['A1', 'A2'],
         'row': ['A', 'A'],
         'column': [1, 2],
@@ -109,11 +102,6 @@ def test_assign_in_post():
 
     plate = ns.Plate(data=df)
 
-    plate_2 = plate.annotate_wells(annotations)
+    plate = plate.annotate_wells(annotations)
 
-    assert plate.df.equals(desired_df_no_inplace)
-    assert plate_2.df.equals(desired_df_w_inplace)
-
-    plate.annotate_wells(annotations, inplace=True)
-
-    assert plate.df.equals(desired_df_w_inplace)
+    assert plate.df.equals(desired_df)
