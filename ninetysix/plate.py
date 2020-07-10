@@ -408,6 +408,12 @@ class Plate():
                 del self.df[name]
             self.df.insert(1, name, val)
 
+        # Assign any other DataFrame columns to annotations
+        assigned_cols = [*self.locations, *self.annotations, *self.values]
+        unassigned_cols = [col for col in self.df.columns
+                           if col not in assigned_cols]
+        self.annotations += unassigned_cols
+
         # Annotate
         if self._init_annotations is not None:
             self = self.annotate_wells(self._init_annotations)
