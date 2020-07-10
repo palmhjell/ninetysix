@@ -130,9 +130,13 @@ class Plate():
         
         # For easier unit testing: do only when passing
         if self._passed:
+
+            self._well_case = self._get_well_case()
+            self._value_case = self._get_value_case()
+
             # Determine case
-            self.lowercase = lowercase
             self._well_lowercase, self._well_list = self._get_well_info()
+            self.lowercase = lowercase
 
             # Determine if zero-padded
             self.zero_padding = zero_padding
@@ -180,25 +184,24 @@ class Plate():
     @property
     def data(self):
         """Makes sure data is not zip, since it's called multiple times,
-        and read in to pd.DataFrame if dict or path.
+        and read in to pd.DataFrame if path or dict.
         """
         return self._data
 
     @data.setter
     def data(self, data):
         if isinstance(data, zip):
-            self._data = list(data)
-        if isinstance(data, pd.DataFrame):
-            self._data = data
-        if isinstance(data, dict):
-            self._data = pd.DataFrame(data)
+            data = list(data)
         if isinstance(data, str):
             extension = data.split('.')[-1]
             if extension == 'csv':
-                self._data = pd.read_csv(data)
+                data = pd.read_csv(data)
             if extension in ('xls', 'xlsx'):
                 engine = 'openpyxl' if extension == 'xlsx' else 'xlrd'
-                self._data = pd.read_excel(data, engine=engine)
+                data = pd.read_excel(data, engine=engine)
+        if isinstance(data, dict):
+            data = pd.DataFrame(data)
+        self._data = data
 
 
     @property
@@ -215,7 +218,7 @@ class Plate():
             if isinstance(self.data, pd.DataFrame):
                 self._value_name = self.data.columns[-1]
             else:
-                self._value_name = self._standardize_case('value', init=True)
+                self._value_name = 'value'
         self._standardize_df()
 
 
@@ -314,7 +317,41 @@ class Plate():
         self._standardize_df()
 
 
+    def _get_well_case(self):
+        """Returns a function to standardize the case of the well index,
+        either str.lower() or str.capitalize()
+        """
+        if isinstance(self.data, pd.DataFrame):
+            well = [col for col in self.data.columns
+                        if col.lower() == 'well'][0]
+        if isinstance(self.data, dict):
+            well = [key for key in self.data if key.lower() == 'well'][0]
+        if isinstance(self.data, list):
+            well = 'well'
+
+        if well.lower() == well:
+            case = str.lower
+        else:
+            case = str.capitalize
+
+        return case
+
+
+    def _get_value_case(self):
+        """Returns a function to standardize the case of the value
+        index, either str.lower() or str.capitalize()
+        """
+        if self._value_name.lower() == self.value_name:
+            case = str.lower
+        else:
+            case = str.capitalize
+
+        return case
+
+
     def _update_column_dict(self):
+        """Keeps track of multi-index indexes, updates as necessary.
+        """
         col_dict_keys = [self._standardize_case(key)
                          for key in ('locations', 'annotations', 'values')]
         try:
@@ -389,7 +426,9 @@ class Plate():
 
         if isinstance(self.data, pd.DataFrame):
             self.df = self.data
-        else:
+        elif isinstance(self.data, dict):
+            self.df = pd.DataFrame(self.data)
+        elif isinstance(self.data, list):
             self.df = pd.DataFrame(
                 data=self.data,
                 columns=[well_string, self.value_name]

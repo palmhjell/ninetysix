@@ -12,42 +12,54 @@ def check_inputs(Plate):
     df = None
     if isinstance(Plate.data, pd.DataFrame):
         df = Plate.data
-    #TODO: need checker on tuple of tuples
 
     if df is not None:
-        well_cols = [col for col in df.columns if col.lower() == 'well']
-        if 'well' not in well_cols:
-            raise ValueError(
-                "No 'well' value found in your DataFrame columns."
-            )
-        if len(well_cols) != 1:
-            raise ValueError(
-                "Multiple 'well' columns detected in your data."
-            )
+        message = 'column'
 
-        well_col = well_cols[0]
-        if (Plate.value_name is None) & (well_col == df.columns[-1]):
-            raise ValueError(
-                "Your final column is assumed to be your value column,"
-                "but found column related to well."
-            )
+    elif isinstance(Plate.data, dict):
+        df = pd.DataFrame(Plate.data)
+        message = 'key'
 
-        bad_types = [type(well) for well in df[well_col]
-                    if not isinstance(well, str)]
+    elif isinstance(Plate.data, list):
+        df = pd.DataFrame(
+            data=Plate.data,
+            columns=['well', Plate.value_name]
+        )
 
-        if bad_types:
-            raise TypeError(
-                f"Well values must be of type string, found: {set(bad_types)}"
-            )
+    well_cols = [col for col in df.columns if col.lower() == 'well']
+    if 'well' not in well_cols:
+        raise ValueError(
+            f"No 'well' value found in your {message}s."
+        )
+    if len(well_cols) != 1:
+        raise ValueError(
+            "Multiple 'well' columns detected in your data."
+        )
 
-        if ((Plate.value_name is not None) &
-            (Plate.value_name not in df.columns)):
-            raise ValueError(
-                f"'{Plate.value_name}' not present in your data, "\
-                f"options are: {list(df.columns)}"
-            )
+    well_col = well_cols[0]
+    if (Plate.value_name is None) & (well_col == df.columns[-1]):
+        raise ValueError(
+            "Your final {message} is assumed to be your value {message},"
+            "but found {message} related to well."
+        )
+
+    bad_types = [type(well) for well in df[well_col]
+                 if not isinstance(well, str)]
+
+    if bad_types:
+        raise TypeError(
+            f"Well values must be of type string, found: {set(bad_types)}"
+        )
+
+    if ((Plate.value_name is not None) and
+        (Plate.value_name not in df.columns)):
+        raise ValueError(
+            f"'{Plate.value_name}' not present in your data, "\
+            f"options are: {list(df.columns)}"
+        )
 
     return True
+
 
 def check_annotations(Plate, annotations):
     """Checks that all annotations are specified correctly,

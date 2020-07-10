@@ -48,7 +48,6 @@ def test_auto_padding():
     assert padded
 
 def test_explicit_padding():
-
     # Update to padded
     df = pd.DataFrame({
         'well': ['A1'],
