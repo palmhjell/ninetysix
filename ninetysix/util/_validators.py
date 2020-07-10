@@ -9,78 +9,43 @@ def check_inputs(Plate):
 
     Returns True if all tests pass.
     """
-    
-    # Well-value pairs
-    if Plate.wells:
+    df = None
+    if isinstance(Plate.data, pd.DataFrame):
+        df = Plate.data
+    #TODO: need checker on tuple of tuples
 
-        if Plate.values is None:
+    if df is not None:
+        well_cols = [col for col in df.columns if col.lower() == 'well']
+        if 'well' not in well_cols:
             raise ValueError(
-                "kwarg 'values' must be specified if 'wells' is not None."
+                "No 'well' value found in your DataFrame columns."
+            )
+        if len(well_cols) != 1:
+            raise ValueError(
+                "Multiple 'well' columns detected in your data."
             )
 
-        if len(Plate.wells) != len(Plate.values):
+        well_col = well_cols[0]
+        if (Plate.value_name is None) & (well_col == df.columns[-1]):
             raise ValueError(
-                "Arrays for 'wells' and 'values' are not the same length."
+                "Your final column is assumed to be your value column,"
+                "but found column related to well."
             )
 
-        # Check that all wells are string values
-        bad_types = [type(well) for well in Plate.wells if type(well) != str]
+        bad_types = [type(well) for well in df[well_col]
+                    if not isinstance(well, str)]
 
         if bad_types:
             raise TypeError(
                 f"Well values must be of type string, found: {set(bad_types)}"
             )
-    
-    # Data (list of lists/tuples or DataFrame/dict)
-    if Plate.data is not None:
 
-        if Plate.wells is not None:
+        if ((Plate.value_name is not None) &
+            (Plate.value_name not in df.columns)):
             raise ValueError(
-                "kwarg 'wells' cannot be specified if 'data' is not None."
+                f"'{Plate.value_name}' not present in your data, "\
+                f"options are: {list(df.columns)}"
             )
-
-        if Plate.values:
-            if type(Plate.values) is not str:
-                raise TypeError(
-                    "kwarg 'values' must take a string argument "\
-                    "(name of the value) if 'data' is not None."
-                )
-
-        df = None
-        if type(Plate.data) == type(pd.DataFrame()):
-            df = Plate.data
-
-        if df is not None:
-            well_cols = [col for col in df.columns if col.lower() == 'well']
-            if 'well' not in well_cols:
-                raise ValueError(
-                    "No 'well' value found in your DataFrame columns."
-                )
-            if len(well_cols) != 1:
-                raise ValueError(
-                    "Multiple 'well' columns detected in your data."
-                )
-
-            well_col = well_cols[0]
-            if (Plate.value_name is None) & (well_col == df.columns[-1]):
-                raise ValueError(
-                    "Your final column is assumed to be your value column,"
-                    "but found column related to well."
-                )
-
-            bad_types = [type(well) for well in df[well_col] if type(well) != str]
-
-            if bad_types:
-                raise TypeError(
-                    f"Well values must be of type string, found: {set(bad_types)}"
-                )
-
-            if ((Plate.value_name is not None) &
-                (Plate.value_name not in df.columns)):
-                raise ValueError(
-                    f"'{Plate.value_name}' not present in your data, "\
-                    f"options are: {list(df.columns)}"
-                )
 
     return True
 

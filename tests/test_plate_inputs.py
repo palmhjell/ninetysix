@@ -17,26 +17,16 @@ def test_value_name():
     value_name = ns.Plate(data=df, value_name='test').value_name
     assert value_name == 'test'
 
-def test_values_to_value_name():
+def test_nonstring_value_name():
     df = pd.DataFrame({
         'well': ['A1'],
         'test': [1],
     })
 
-    value_name = ns.Plate(data=df, values='test').value_name
-    assert value_name == 'test'
-
-def test_nonstring_value():
-    df = pd.DataFrame({
-        'well': ['A1'],
-        'test': [1],
-    })
-
-    with pytest.raises(TypeError):
-        ns.Plate(data=df, values=4)
+    with pytest.raises(ValueError):
+        ns.Plate(data=df, value_name=4)
 
 def test_auto_padding():
-
     # Auto-detect (lack of) padding
     df = pd.DataFrame({
         'well': ['A1'],
@@ -95,30 +85,6 @@ def test_explicit_padding():
 
 
 # Well-value pair inputs
-def test_two_lists():
-    wells = ['A1', 'A2']
-    values = [1, 2]
-
-    assert ns.Plate(wells=wells, values=values)._passed
-
-    output_df = ns.Plate(wells=wells, values=values).df
-
-    desired_df = pd.DataFrame({
-        'well': ['A1', 'A2'],
-        'row': ['A', 'A'],
-        'column': [1, 2],
-        'value': [1, 2],
-    })
-    
-    assert output_df.equals(desired_df)
-
-def test_nonstring_well():
-    wells = ['A1', 2]
-    values = [1, 2]
-
-    with pytest.raises(TypeError):
-        ns.Plate(wells=wells, values=values)
-
 def test_tuple_of_tuples():
     wells = ('A1', 'A2')
     values = (1, 2)
@@ -126,11 +92,18 @@ def test_tuple_of_tuples():
 
     assert ns.Plate(data=data)._passed
 
+def test_nonstring_well():
+    wells = ['A1', 2]
+    values = [1, 2]
+    data = zip(wells, values)
+
+    with pytest.raises(TypeError):
+        ns.Plate(data=data)
+
 def test_tuple_of_tuples_with_name():
     wells = ('A1', 'A2')
     values = (1, 2)
 
-    assert ns.Plate(data=zip(wells, values), values='test')._passed
     assert ns.Plate(data=zip(wells, values), value_name='test')._passed
 
     output_df = ns.Plate(data=zip(wells, values), value_name='test').df
@@ -142,14 +115,6 @@ def test_tuple_of_tuples_with_name():
     })
 
     assert output_df.equals(desired_df)
-
-def test_tuple_of_tuples_with_value_list():
-    wells = ('A1', 'A2')
-    values = (1, 2)
-    data = zip(wells, values)
-
-    with pytest.raises(TypeError):
-        ns.Plate(data=data, values=values)
 
 
 # DataFrame/dict/path inputs
@@ -199,14 +164,14 @@ def test_df_nonstring_well():
     with pytest.raises(TypeError):
         ns.Plate(data=df)
 
-def test_df_with_value():
+def test_df_with_value_name():
     df = pd.DataFrame({
         'well': ['A1'],
         'RT': [0.4],
         'area': [1],
     })
 
-    assert ns.Plate(data=df, values='area')._passed
+    assert ns.Plate(data=df, value_name='area')._passed
 
 def test_df_move_value():
     input_df = pd.DataFrame({
@@ -223,7 +188,7 @@ def test_df_move_value():
         'area': [1],
     })
 
-    output_df = ns.Plate(data=input_df, values='area').df
+    output_df = ns.Plate(data=input_df, value_name='area').df
 
     assert output_df.equals(desired_df)
 

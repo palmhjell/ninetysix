@@ -18,7 +18,6 @@ def _get_pandas_attrs(Plate, attr_name):
     if callable(attr):
         @wraps(attr)
         def wrapper(*args, **kwargs):
-            
             # head and tail are not used as new Plates; return pd obj is fine
             if attr_name in ('head', 'tail'):
                 output = attr(Plate.df, *args, **kwargs)
@@ -49,9 +48,11 @@ def _make_pandas_attrs(Plate):
     """Assigns pandas attributes/methods to Plate from Plate.df"""
     _pd_attrs = dir(pd.DataFrame)
     _pd_deprecated = ['as_blocks', 'blocks', 'ftypes', 'is_copy', 'ix']
+    _ns_incompat = ['values']
+    ignore = [*_pd_deprecated, *_ns_incompat]
     
     for attr_name in _pd_attrs:
-        if (attr_name in _pd_deprecated) or (attr_name[0] == '_'):
+        if (attr_name in ignore) or (attr_name[0] == '_'):
             continue
         attr_pair = _get_pandas_attrs(Plate, attr_name)
         setattr(Plate, *attr_pair)
