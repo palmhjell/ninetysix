@@ -119,7 +119,7 @@ def check_annotations(Plate, annotations):
 
     return annotation_type
 
-def check_df_col(Plate, column, name=None):
+def check_df_col(df, column, name=None):
     """Checks for the presence of a column (or columns) in a tidy
     DataFrame with an informative error message. Passes silently,
     otherwise raises error.
@@ -129,7 +129,7 @@ def check_df_col(Plate, column, name=None):
     else:
         error_message = f"Your {name} '{column}' is not present in any of your data's columns."
     error_message += "\nYou may be looking for:\n  " + \
-        str(list(Plate.df.columns))
+        str(list(df.columns))
 
-    if column not in Plate.df.columns:
+    if column not in df.columns:
         raise ValueError(error_message)

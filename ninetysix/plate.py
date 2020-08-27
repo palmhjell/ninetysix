@@ -45,7 +45,7 @@ class Plate():
         Case of column indexes. True = all lowercase, False = all
         capitalized. None will default to lowercase or the case of the
         'well' column, if given, or keep the columns as-is.
-    zero_padded : bool, default None
+    zero_padding : bool, default None
         Whether or not the wells are (or should be) zero-padded, e.g.,
         A1 or A01. If None, determines this from what's given. If True
         or False, will update the wells to match this state.
@@ -173,6 +173,18 @@ class Plate():
         if key not in self.annotations:
             self.annotations.append(key)
         self._standardize_df()
+
+    def __delitem__(self, key):
+        if key in [self._standardize_case(loc) for loc in self._locations]:
+            raise ValueError(
+                'Cannot delete base locations (well, row, column).'
+            )
+        del self.df[key]
+        for plate_list in (self.annotations, self.values):
+            if key in plate_list:
+                plate_list.remove(key)
+        self._standardize_df()
+
 
     def _repr_html_(self):
         return self.df._repr_html_()
@@ -525,7 +537,7 @@ class Plate():
 
     def set_as_location(self, name, idx=-1):
         """Sets a column as a location"""
-        check_df_col(self, name, 'name')
+        check_df_col(self.df, name, 'name')
         self._remove_column(name)
         
         if idx == -1:
@@ -557,7 +569,7 @@ class Plate():
 
                 # Check that the column exists
                 for val in new_values:
-                    check_df_col(self, val, 'value')
+                    check_df_col(self.df, val, 'value')
                     self._remove_column(val)
 
             # Add to self._values
@@ -565,7 +577,7 @@ class Plate():
 
         # Update self.value_name
         if value_name is not None:
-            check_df_col(self, value_name, 'value_name')
+            check_df_col(self.df, value_name, 'value_name')
             self.value_name = value_name
 
         # Move main value to end of vals list
@@ -722,7 +734,7 @@ class Plate():
 
         # Iterate through each value
         for value in values:
-            check_df_col(self, value, name='value')
+            check_df_col(self.df, value, name='value')
 
             norm_string = f'normalized_{value}'
 
@@ -739,7 +751,7 @@ class Plate():
                 col, val = split
 
                 # Check that col in columns
-                check_df_col(self, col, name='column')
+                check_df_col(self.df, col, name='column')
 
                 # Check that the given value is found in the column
                 if val not in [str(i) for i in self.df[col]]:
@@ -769,7 +781,7 @@ class Plate():
                 col, val = split
                 
                 # Check that col in columns
-                check_df_col(self, col, name='column')
+                check_df_col(self.df, col, name='column')
 
                 # Check that the given value is found in the column
                 if val not in [str(i) for i in self.df[col]]:
