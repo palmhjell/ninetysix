@@ -1,9 +1,10 @@
-import pandas as pd
-import pandas_flavor as pf
 from functools import wraps
 
-import ninetysix as ns
+import pandas as pd
+import pandas_flavor as pf
 
+import ninetysix as ns
+from ..viz import *
 
 # For placing viz plot methods on Plate
 def _get_viz_attr(Plate, plot):

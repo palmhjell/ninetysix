@@ -19,10 +19,10 @@ class Plate():
     """A pandas DataFrame-centric, well-value oriented container for
     structuring, annotating, and analyzing 96-well* plate data.
 
-    (*Contrary to the name, can be more or less than 96 wells.)
+    (*Contrary to the package name, can be more or less than 96 wells.)
 
     Supports assignment of well conditions during and after object
-    instantiation to result in the contruction of condition-assigned,
+    instantiation to result in the construction of condition-assigned,
     well-value pairs. Well column remains at 0 index, working value
     column remains -1 index to support rapid, implicit visualization of
     pertinent well/value data.
