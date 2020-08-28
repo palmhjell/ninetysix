@@ -4,6 +4,23 @@ from functools import wraps
 
 import ninetysix as ns
 
+
+# For placing viz plot methods on Plate
+def _get_viz_attr(Plate, plot):
+    attr = getattr(ns.viz, plot)
+    @wraps(attr)
+    def wrapper(*args, **kwargs):
+        return attr(Plate, *args, **kwargs)
+
+    return plot, wrapper
+
+def _set_viz_attrs(Plate):
+    plots = [func for func in dir(ns.viz) if 'plot_' in func]
+    for plot in plots:
+        attr_pair = _get_viz_attr(Plate, plot)
+        setattr(Plate, *attr_pair)
+
+
 # For placing pandas attributes/functions on Plate
 # rather only being accessible via Plate.df.
 # pandas_flavor (pf) helps return pd.DataFrame output as Plate
@@ -44,7 +61,7 @@ def _get_pandas_attrs(Plate, attr_name):
 
     return attr_pair
 
-def _make_pandas_attrs(Plate):
+def _set_pandas_attrs(Plate):
     """Assigns pandas attributes/methods to Plate from Plate.df"""
     _pd_attrs = dir(pd.DataFrame)
     _pd_deprecated = ['as_blocks', 'blocks', 'ftypes', 'is_copy', 'ix']

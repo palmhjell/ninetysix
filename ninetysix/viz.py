@@ -8,7 +8,6 @@ import pandas as pd
 import holoviews as hv
 hv.extension('bokeh')
 
-from .plate import Plate
 from .util import check_inputs, check_annotations, check_df_col
 
 
@@ -33,12 +32,7 @@ def _get_ordered_locs(df):
 
 def _parse_data_obj(object):
     """Gets necessary information for 96-well-based plots"""
-    if isinstance(object, Plate):
-        df = object.df.copy()
-        value_name = object.value_name
-        case = object._standardize_case
-
-    elif isinstance(object, pd.DataFrame):
+    if isinstance(object, pd.DataFrame):
         df = object.copy()
         value_name = df.columns[-1]
 
@@ -46,6 +40,18 @@ def _parse_data_obj(object):
         lowers = [True for val in df.columns if val.lower() == val]
         caps = [True for val in df.columns if val.capitalize() == val]
         case = str.lower if lowers > caps else str.capitalize
+
+    # Assume Plate
+    else:
+        try:
+            df = object.df.copy()
+            value_name = object.value_name
+            case = object._standardize_case
+        except AttributeError:
+            raise ValueError(
+                'Data format not recognized, only pandas.DataFrame and '\
+                'ninetysix.Plate objects accepted.'
+            )
 
     well, row, col = _get_ordered_locs(df)
 
@@ -117,17 +123,19 @@ def plot_rof(
         if isinstance(sort_order, dict):
             df[sort] = pd.Categorical(df[sort], categories=sort_order.keys())
             df = df.sort_values(by=sort, ascending=False)
-            # Reverse ordering to line up
+            # Reverse ordering to line up with sort
             cmap = list(reversed(list(sort_order.values())))
 
     vdims = [val for val in (value_name, color, *groupby) if val is not None]
 
     # Auto-colomapping
     if cmap == 'CategoryN':
-        if len(df[color].unique()) <= 10:
-            cmap = 'Category10'
-        else:
-            cmap = 'Category20'
+        cmap = 'Category10'
+        try:
+            if len(df[color].unique()) > 10:
+                cmap = 'Category20'
+        except KeyError:
+            pass
 
     # Set up options; entries can be overwritten by rof_opts
     base_opts = dict(

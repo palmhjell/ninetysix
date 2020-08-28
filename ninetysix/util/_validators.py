@@ -68,6 +68,14 @@ def check_annotations(Plate, annotations):
     Returns annotation type if all tests pass.
     """
     if isinstance(annotations, dict):
+        # Check for nested dict
+        for column in annotations:
+            if not isinstance(annotations[column], dict):
+                raise ValueError(
+                    "Annotations should be a nested dictionary, following the"\
+                    " form {new_column_name: {wells: annotation}}. Your "\
+                    "input did not contain a nested dictionary."
+                )
 
         # Check keys
         acceptable_kwargs = ('default', 'standard', 'else', 'other')
@@ -77,7 +85,7 @@ def check_annotations(Plate, annotations):
         acceptable_wells += [pad(row+col) for row in rows for col in cols]
         acceptable_wells = set(acceptable_wells)
         
-        for column in annotations.keys():
+        for column in annotations:
             working_annotations = well_regex(annotations[column],
                                              padded=Plate.zero_padding)
             

@@ -1,14 +1,25 @@
+"""
+Plate
+------
+Primary functionality of ninetysix, providing the a class for the
+rapid analysis and visualization of ninety-six* well plate assays.
+
+*Not actually restricted to 96 wells, pretty much anything goes.
+"""
+
 import numpy as np
 import pandas as pd
 
 from .parsers import pad, _infer_padding, well_regex
 from .util import check_inputs, check_annotations, check_df_col
-from .util._pandas_attrs import _make_pandas_attrs
+from .util._plate_attrs import _set_viz_attrs, _set_pandas_attrs
 
 
 class Plate():
     """A pandas DataFrame-centric, well-value oriented container for
-    structuring, annotating, and analyzing 96-well plate data.
+    structuring, annotating, and analyzing 96-well* plate data.
+
+    (*Contrary to the name, can be more or less than 96 wells.)
 
     Supports assignment of well conditions during and after object
     instantiation to result in the contruction of condition-assigned,
@@ -157,9 +168,11 @@ class Plate():
             self._pandas_attrs = pandas_attrs
             if self._pandas_attrs:
                 try:
-                    _make_pandas_attrs(self)
+                    _set_pandas_attrs(self)
                 except ImportError:
                     self._pandas_attrs = 'Failed due to import error'
+
+            _set_viz_attrs(self)
 
 ###########################
 # Operator Overloads
@@ -811,3 +824,4 @@ class Plate():
         self._standardize_df()
 
         return self
+  
