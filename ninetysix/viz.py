@@ -58,6 +58,21 @@ def _parse_data_obj(object):
     return df, (well, row, col), value_name, case
 
 
+def _center_colormap(data, cmap_center):
+    """Stretch a color map so that its center is at `cmap_center`."""
+    if not isinstance(cmap_center, (float, int)):
+        raise TypeError(
+            'cmap_center argument must be float or int.'
+        )
+    if not min(data) < cmap_center < max(data):
+        raise ValueError('Must have min(data) < cmap_center < max(data).')
+
+    dist = max(max(data) - cmap_center, cmap_center - min(data))
+    dist += dist / 100
+
+    return list(np.linspace(cmap_center-dist, cmap_center+dist, 257))
+
+
 def plot_rof(
     object,
     value_name=None,
@@ -253,6 +268,7 @@ def plot_hm(
     layout=False,
     n_cols=2,
     hm_cmap='RdBu_r',
+    cmap_center=None,
     outline_cmap='CategoryN',
     legend=True,
     height=None,
@@ -291,6 +307,10 @@ def plot_hm(
         How to assign values to colors on the heatmap. If a different
         string, must be an acceptable cmap for holoviews. Otherwise, can
         be a list of colors from a continuous colormap.
+    cmap_center: float or int, default None
+        The center of the heatmap's colormap. Useful for setting the
+        center of a diverging colormap to an important value (like a
+        control).
     outline_cmap: string, list, or dict, default 'CategoryN'
         How to color the groups of data found in `outline`. Default of 
         'CategoryN' switches between 'Category10' and 'Category20'
@@ -347,6 +367,14 @@ def plot_hm(
         height = int(50 * n_rows)
     width = height * n_cols // n_rows
 
+    # Center colorbar
+    if cmap_center is None:
+        # Default to middle of data range (normal behavior)
+        values = df[value_name]
+        cmap_center = min(values) + (max(values) - min(values))/2
+
+    color_levels = _center_colormap(df[value_name].dropna(), cmap_center)
+
     # Set the plot options; can be overwritten
     base_opts = dict(
         cmap=hm_cmap,
@@ -354,6 +382,7 @@ def plot_hm(
         frame_height=height,
         frame_width=width,
         colorbar=True,
+        color_levels=color_levels,
         invert_yaxis=True,
         tools=['hover'],
         **hm_opts,
