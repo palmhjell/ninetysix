@@ -27,7 +27,7 @@ def check_inputs(Plate):
         )
 
     well_cols = [col for col in df.columns if col.lower() == 'well']
-    if 'well' not in well_cols:
+    if 'well' not in [well.lower() for well in well_cols]:
         raise ValueError(
             f"No 'well' value found in your {message}s."
         )

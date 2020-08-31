@@ -354,10 +354,10 @@ class Plate():
         if isinstance(self.data, list):
             well = 'well'
 
-        if well.lower() == well:
-            case = str.lower
-        else:
-            case = str.capitalize
+        case = None
+        for method in (str.lower, str.capitalize, str.upper):
+            if method(well) == well:
+                case = method
 
         return case
 
@@ -366,10 +366,10 @@ class Plate():
         """Returns a function to standardize the case of the value
         index, either str.lower() or str.capitalize()
         """
-        if self._value_name.lower() == self.value_name:
-            case = str.lower
-        else:
-            case = str.capitalize
+        case = None
+        for method in (str.lower, str.capitalize, str.upper):
+            if method(self._value_name) == self._value_name:
+                case = method
 
         return case
 
@@ -447,10 +447,10 @@ class Plate():
     def _make_df(self):
         """Given passing inputs, sets up the initial DataFrame."""
         # Use given case
-        well_string = self._standardize_case('well')
+        well_string = self._well_case('well')
 
         if isinstance(self.data, pd.DataFrame):
-            self.df = self.data
+            self.df = self.data.copy()
         elif isinstance(self.data, dict):
             self.df = pd.DataFrame(self.data)
         elif isinstance(self.data, list):
@@ -460,17 +460,24 @@ class Plate():
             )
 
         # Add row and column if not already there
-        col_check = [col for col in self.df.columns if col in ('row', 'column')]
+        col_check = [col for col in self.df.columns
+                     if col.lower() in ('row', 'column')]
 
-        rows, cols = zip(*self.df[well_string].apply(
-            lambda well: (well[0], int(well[1:]))
-        ))
+        if not col_check:
+            rows, cols = zip(*self.df[well_string].apply(
+                lambda well: (well[0], int(well[1:]))
+            ))
 
-        for val, name in zip((rows, cols), ('row', 'column')):
-            name = self._standardize_case(name)
-            if name in self.df.columns:
-                del self.df[name]
-            self.df.insert(1, name, val)
+            for val, name in zip((rows, cols), ('row', 'column')):
+                name = self._standardize_case(name)
+                self.df.insert(1, name, val)
+
+        else:
+            for col in col_check:
+                val = self.df[col].values
+                del self.df[col]
+                idx = ['row', 'column'].index(col.lower()) + 1
+                self.df.insert(idx, col, val)
 
         # Assign any other DataFrame columns to annotations
         assigned_cols = [*self.locations, *self.annotations, *self.values]
@@ -539,7 +546,7 @@ class Plate():
         self.df = _df.copy()
 
         # Update padding
-        well_string = self._standardize_case('well')
+        well_string = self._well_case('well')
         self._well_list = [pad(well, padded=self.zero_padding)
                            for well in self._well_list]
         self.df[well_string] = self._well_list
@@ -615,7 +622,7 @@ class Plate():
 
         Parameters
         ----------
-        annotations : nested dictionary or excel sheet
+        annotations: nested dictionary or excel sheet
             A mapping that assigns conditions to wells. For a nested
             dictionary, the outer key(s) will be the name of the condition
             which results in a new DataFrame column for each condition
@@ -643,7 +650,7 @@ class Plate():
                         default = working_annotations[key]
 
                 # Make new columns
-                wells = self.df[self._standardize_case('well')]
+                wells = self.df[self._well_case('well')]
                 self.df[column] = wells.map(working_annotations.get)
                 self.df[column] = self.df[column].replace({None: default})
 
