@@ -236,15 +236,17 @@ def plot_scatter(
         else:
             grouped = df.groupby(groupby)[value_name]
             df[case('rank')] = grouped.rank(ascending=False)
-
+    
+    secondary_sort = []
+    kdims = []
     if ranked:
-        xaxis = 'bottom'
-        secondary_sort = case('rank')
-        kdims = case('rank')
+        secondary_sort.append(case('rank'))
+        kdims.append(case('rank'))
     else:
-        xaxis = 'bare'
-        # Order by well
-        secondary_sort = locs[0]
+        plot_opts['xticks'] = 0
+        # Order by well (A1-H12 ordering)
+        secondary_sort += [locs[1], locs[2]]
+        # kdims = well
         kdims = locs[0]
     
     df = df.sort_values(by=secondary_sort, ascending=True)
@@ -252,9 +254,9 @@ def plot_scatter(
     # Layering
     if layering is not None:
         if layering_order == 'ascending':
-            df = df.sort_values(by=[layering, secondary_sort], ascending=True)
+            df = df.sort_values(by=[layering, *secondary_sort], ascending=True)
         if layering_order == 'descending':
-            df = df.sort_values(by=[layering, secondary_sort], ascending=False)
+            df = df.sort_values(by=[layering, *secondary_sort], ascending=False)
         if isinstance(layering_order, list):
             df[layering] = pd.Categorical(df[layering], categories=layering_order)
             # Reverse ordering to line up
@@ -274,7 +276,7 @@ def plot_scatter(
             # Reverse ordering to line up with layering
             cmap = list(reversed(list(cmap.values())))
 
-        df = df.sort_values(by=[layering, secondary_sort], ascending=False)
+        df = df.sort_values(by=[layering, *secondary_sort], ascending=not ranked)
 
     elif color is not None:
         if isinstance(cmap, dict):
@@ -283,9 +285,12 @@ def plot_scatter(
                 categories=cmap.keys()
             )
             # Reverse ordering to line up with layering
-            cmap = list(reversed(list(cmap.values())))
+            if ranked:
+                cmap = list(reversed(list(cmap.values())))
+            else:
+                cmap = list(cmap.values())
 
-            df = df.sort_values(by=[color, secondary_sort], ascending=False)
+            df = df.sort_values(by=[color, *secondary_sort], ascending=not ranked)
 
     vdims = [value_name] + [val for val in df.columns if val != value_name]
 
@@ -302,7 +307,6 @@ def plot_scatter(
     base_opts = dict(
         height=height,
         width=width,
-        xaxis=xaxis,
         size=10,
         fill_alpha=1,
         alpha=0.75,
