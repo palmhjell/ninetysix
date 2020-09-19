@@ -27,9 +27,9 @@ class Plate():
     column remains -1 index to support rapid, implicit visualization of
     pertinent well/value data.
 
-    Parameters
-    ----------
-    data : dict, DataFrame, Iterable (list of length-two lists), or path
+    Parameters:
+    -----------
+    data: dict, DataFrame, Iterable (list of length-two lists), or path
         Given a dict or DataFrame, the data must contain a key/column
         name that identifies 'well' (case-insentivie). The value of 
         interest can be assigned a name in the final DataFrame via
@@ -39,9 +39,9 @@ class Plate():
         settings. If more control over the import of this file is
         needed, import to a pandas DataFrame first, then pass this to
         'data'.
-    value_name : string
+    value_name: string
         Specification or assignment of value name.
-    annotate : nested dictionary or template excel file
+    annotate: nested dictionary or template excel file
         Maps wells to conditions in new columns of a tidy DataFrame. The
         outermost keys give the name of the resulting column. The inner
         keys are the wells corresponding to a given condition/value.
@@ -52,23 +52,23 @@ class Plate():
         key will be assigned to all other non-specified wells (else they
         get a value of `None`). Also takes a specific excel spreadsheet
         format; see the annotate_wells() method or  parsers.well_regex() function for more details.
-    lowercase : bool, default None
+    lowercase: bool, default None
         Case of column indexes. True = all lowercase, False = all
         capitalized. None will default to lowercase or the case of the
         'well' column, if given, or keep the columns as-is.
-    zero_padding : bool, default None
+    zero_padding: bool, default None
         Whether or not the wells are (or should be) zero-padded, e.g.,
         A1 or A01. If None, determines this from what's given. If True
         or False, will update the wells to match this state.
-    pandas_attrs : bool, default True
+    pandas_attrs: bool, default True
         Whether or not to assign pandas attributes and methods directly
         to Plate object rather than only being accessible via the
         underlying Plate.df attribute. If it fails due to an import
         error, the attribute becomes a message (Failed due to import
         error).
 
-    Examples
-    --------
+    Examples:
+    ---------
     Constructing a Plate object with 'data':
 
     # With an Iterable
@@ -288,7 +288,7 @@ class Plate():
     @values.setter
     def values(self, values):
         self._values = values
-        self._value_name = values[-1]
+        self.value_name = values[-1]
         self._update_column_dict()
 
     @values.getter
@@ -575,11 +575,11 @@ class Plate():
     def set_as_values(self, new_values=None, value_name=None):
         """Sets columns in the Plate DataFrame as values.
         
-        Parameters
-        ----------
-        new_values : str or list of str
+        Parameters:
+        -----------
+        new_values: str or list of str
             A list of column names to be set as values.
-        value_name : str
+        value_name: str
             Which value should be set as the main (-1 index) value.
         """
         # Set as list
@@ -620,8 +620,8 @@ class Plate():
         in the output DataFrame that provide additional information 
         about the contents or conditions of each well in the Plate.
 
-        Parameters
-        ----------
+        Parameters:
+        -----------
         annotations: nested dictionary or excel sheet
             A mapping that assigns conditions to wells. For a nested
             dictionary, the outer key(s) will be the name of the condition
@@ -723,6 +723,7 @@ class Plate():
         zero=None,
         # devs=False,
         update_value=None,
+        prefix='normalized_',
     ):
         """Normalizes the value column to give the max a value of 1,
         returning a new column named 'normalized_[value]'. Accepts
@@ -756,7 +757,7 @@ class Plate():
         for value in values:
             check_df_col(self.df, value, name='value')
 
-            norm_string = f'normalized_{value}'
+            norm_string = f'{prefix}{value}'
 
             # Set the zero val
             if zero == True:
@@ -817,16 +818,18 @@ class Plate():
 
             # Update self._values list
             if norm_string not in self._values:
-                self._values.append(norm_string)
+                self._values.insert(-2, norm_string)
         
         # Clean up
         if update_value:
             if isinstance(update_value, str):
-                update_string = f'normalized_{update_value}'
+                update_string = f'{prefix}{update_value}'
             else:
                 update_string = norm_string
             
-            self._value_name = update_string
+            self.value_name = update_string
+            self._values.remove(update_string)
+            self._values.append(update_string)
 
         self._standardize_df()
 
