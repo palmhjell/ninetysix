@@ -132,22 +132,22 @@ def aggregate_replicates(df, variable, value, grouping):
     return replicates, df
 
 
-def plot_rof(
+def plot_scatter(
     object,
     value_name=None,
     color=None,
     layering=None,
     layering_order=None,
     cmap='CategoryN',
-    ranked=True,
+    ranked=False,
     groupby=None,
     layout=False,
     n_cols=2,
     height=350,
     width=450,
-    rof_opts=None,
+    plot_opts=None,
 ):
-    """Plot a retention-of-function-like curve (rank-ordered scatter).
+    """Create a well-activity scatter plot.
 
     Parameters:
     -----------
@@ -182,9 +182,9 @@ def plot_rof(
         colors (which matches the order of `layering`, if not None and
         if `layering_order` is not a dict), or the same dict as
         `layering_order`.
-    ranked: bool, default True
-        Whether to rank the data (as a true retention of function) or
-        not (as a well-sorted scatter plot). Passing False is good to
+    ranked: bool, default False
+        Whether to rank the data (as a retention-of-function-like curve)
+        or not (as a well-sorted scatter plot). Passing False is good to
         check signal-to-noise and edge effects in the plate.
     groupby: string or list, default None
         One or more columns in the data used to split the plot into
@@ -199,7 +199,7 @@ def plot_rof(
         Height of the plot.
     width: int, default 450
         Width of the plot.
-    rof_opts: dict, default None
+    plot_opts: dict, default None
         Holoviews-specific opts to pass to the chart. See the holoviews
         docs. Overwrites the base plot opts if the same opt is passed.
 
@@ -207,8 +207,8 @@ def plot_rof(
     --------
     p: Holoviews plot
     """
-    if rof_opts is None:
-        rof_opts = {}
+    if plot_opts is None:
+        plot_opts = {}
     # Get data and metadata
     df, locs, auto_value, case = _parse_data_obj(object)
     if value_name is not None:
@@ -221,7 +221,7 @@ def plot_rof(
             data_color = False
         except ValueError:
             data_color = True
-        rof_opts['color'] = color
+        plot_opts['color'] = color
     if layering is not None:
         check_df_col(df, layering, 'layering')
     if not isinstance(groupby, list):
@@ -298,7 +298,7 @@ def plot_rof(
         except KeyError:
             pass
 
-    # Set up options; entries can be overwritten by rof_opts
+    # Set up options; entries can be overwritten by plot_opts
     base_opts = dict(
         height=height,
         width=width,
@@ -313,7 +313,7 @@ def plot_rof(
         padding=0.05,
         toolbar='above',
         tools=['hover'],
-        **rof_opts,
+        **plot_opts,
     )
 
     p = hv.Scatter(
@@ -331,6 +331,73 @@ def plot_rof(
         p = p.layout().cols(n_cols)
 
     return p
+
+
+def plot_rof(*args, **kwargs):
+    f"""Create a retention of function curve, or a rank-ordered scatter
+    plot.
+
+    Parameters:
+    -----------
+    object: ns.Plate or pd.DataFrame object
+        Must contain a DataFrame with columns labeled well, row, column,
+        (case-insensitive) and the final column as the label (can be
+        overwritten, see `value_name` kwarg).
+    value_name: string, default None
+        Which column in the data contains the y-axis data. Defaults to
+        ns.Plate.value_name or pd.DataFrame.columns[-1].
+    color: string, default None
+        Either the column that should be used to color the data or the
+        color all data points should be (e.g., 'green' or '#00FF00').
+        If there is a column in the data that corresponds to the `color`
+        input, it will be used first (before rgb/hex colors).
+    layering: string, default None
+        Which column in the data should be used to order the layering
+        of the data. This kwarg is useful when you want certain points
+        (e.g., control wells) to not be covered by other points. See 
+        `layering_order` kwarg to control the specific ordering (and
+        coloring) of the values in this column.
+    layering_order: 'ascending', 'descending', or a list or dict.
+        Layering of the data, from front to back, using the values in
+        the column specified in `layering`. If providing a dictionary,
+        keys are provided as the layering (in order) and values are the
+        respective colors of each group.
+    cmap: string, list, or dict, default 'CategoryN'
+        How to color the groups of data found in `color`. Default of 
+        'CategoryN' switches between 'Category10' and 'Category20'
+        depending on the number of groups. If a different string, must
+        be an acceptable cmap for holoviews. Otherwise, can be a list of
+        colors (which matches the order of `layering`, if not None and
+        if `layering_order` is not a dict), or the same dict as
+        `layering_order`.
+    ranked: bool, default True
+        Whether to rank the data (as a retention-of-function-like curve)
+        or not (as a well-sorted scatter plot). Passing False is good to
+        check signal-to-noise and edge effects in the plate.
+    groupby: string or list, default None
+        One or more columns in the data used to split the plot into
+        multiple plots, usually a location (like plate number) or
+        annotation.
+    layout: bool, default False
+        Whether or not to lay out all of the data (True) or keep it as
+        a slider-based panel (False), if `groupby` was not None.
+    n_cols: int, default 2
+        Number of columns of laid-out plots if `layout` is True.
+    height: int, default 350
+        Height of the plot.
+    width: int, default 450
+        Width of the plot.
+    plot_opts: dict, default None
+        Holoviews-specific opts to pass to the chart. See the holoviews
+        docs. Overwrites the base plot opts if the same opt is passed.
+
+    Returns:
+    --------
+    p: Holoviews plot
+    """
+    if 'ranked' not in kwargs:
+        kwargs['ranked'] = True
+    return plot_scatter(*args, **kwargs)
 
 
 def plot_hm(
