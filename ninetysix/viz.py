@@ -10,6 +10,13 @@ hv.extension('bokeh')
 
 from .util import check_inputs, check_annotations, check_df_col
 
+class Colors():
+    """Mild color palette."""
+    blue = '#3E94FA'
+    green = '#8DED81'
+    orange = '#E18409'
+    gray = '#DEDEDE'
+
 
 def _get_ordered_locs(df):
     """Returns location information in 'well', 'row', 'column' order."""
@@ -73,6 +80,58 @@ def _center_colormap(data, cmap_center):
     return list(np.linspace(cmap_center-dist, cmap_center+dist, 257))
 
 
+def aggregate_replicates(df, variable, value, grouping):
+    """Checks for the presence of replicates in the values of a dataset,
+    given some experimental conditions. Returns True if the standard
+    deviation of the values of each group (if more than one exists) is
+    greater than 0, indicating that replicates were performed under the
+    given criteria.
+    
+    Parameters:
+    -----------
+    df: pandas DataFrame in tidy format
+        The dataset to be checked for replicates.
+    variable: string
+        Name of column of data frame for the independent variable,
+        indicating a specific experimental condition.
+    value: string
+        Name of column of data frame for the dependent variable,
+        indicating an experimental observation.
+    group: list of strings
+        Column name or list of column names that indicates how the
+        data set should be split.
+    
+    Returns:
+    --------
+    replicates: bool
+        True if replicates are present.
+    df_agg: pd.DataFrame
+        The DataFrame containing averaged 'variable' values, if
+        replicates is True. Otherwise returns the original DataFrame.
+        The aggregated data is in a new column
+    """
+    # Unpack the experimental conditions into a single list of arguments
+    if not isinstance(grouping, (list, tuple)):
+        grouping = [grouping]
+    args = [elem for elem in (variable, *grouping) if elem is not None]
+
+    # Get stdev of argument groups
+    grouped = df.groupby(args)[value]
+    group_stdevs = grouped.std().reset_index()
+    group_stdev = group_stdevs[value].mean()
+
+    # Determine if there are replicates (mean > 0)
+    replicates = bool(group_stdev > 0)
+
+    # Average the values and return
+    if replicates:
+        df_mean = grouped.mean().reset_index()
+        df_mean.columns = list(df_mean.columns[:-1]) + ['mean_' + str(value)]
+        df = df.merge(df_mean)
+
+    return replicates, df
+
+
 def plot_rof(
     object,
     value_name=None,
@@ -86,7 +145,7 @@ def plot_rof(
     n_cols=2,
     height=350,
     width=450,
-    rof_opts={},
+    rof_opts=None,
 ):
     """Plot a retention-of-function-like curve (rank-ordered scatter).
 
@@ -140,14 +199,16 @@ def plot_rof(
         Height of the plot.
     width: int, default 450
         Width of the plot.
-    rof_opts: dict, default empty dict
+    rof_opts: dict, default None
         Holoviews-specific opts to pass to the chart. See the holoviews
         docs. Overwrites the base plot opts if the same opt is passed.
 
     Returns:
     --------
-    p: holoviews plot
+    p: Holoviews plot
     """
+    if rof_opts is None:
+        rof_opts = {}
     # Get data and metadata
     df, locs, auto_value, case = _parse_data_obj(object)
     if value_name is not None:
@@ -169,31 +230,33 @@ def plot_rof(
         for group in groupby:
             check_df_col(df, group, 'groupby')
 
+    if case('rank') not in df.columns:
+        if groupby == [None]:
+            df[case('rank')] = df[value_name].rank(ascending=False)
+        else:
+            grouped = df.groupby(groupby)[value_name]
+            df[case('rank')] = grouped.rank(ascending=False)
+
     if ranked:
         xaxis = 'bottom'
-        if case('rank') not in df.columns:
-            if groupby == [None]:
-                df[case('rank')] = df[value_name].rank(ascending=False)
-            else:
-                grouped = df.groupby(groupby)[value_name]
-                df[case('rank')] = grouped.rank(ascending=False)
-        df = df.sort_values(by=case('rank'), ascending=True)
+        secondary_sort = case('rank')
         kdims = case('rank')
     else:
-        # Order by well
-        kdims = locs[0]
-        df = df.sort_values(by=locs[0], ascending=True)
         xaxis = 'bare'
+        # Order by well
+        secondary_sort = locs[0]
+        kdims = locs[0]
+    
+    df = df.sort_values(by=secondary_sort, ascending=True)
 
     # Layering
     if layering is not None:
         if layering_order == 'ascending':
-            df = df.sort_values(by=layering, ascending=True)
+            df = df.sort_values(by=[layering, secondary_sort], ascending=True)
         if layering_order == 'descending':
-            df = df.sort_values(by=layering, ascending=False)
+            df = df.sort_values(by=[layering, secondary_sort], ascending=False)
         if isinstance(layering_order, list):
             df[layering] = pd.Categorical(df[layering], categories=layering_order)
-            df = df.sort_values(by=layering, ascending=False)
             # Reverse ordering to line up
             cmap=list(reversed(cmap))
         if isinstance(layering_order, dict):
@@ -201,7 +264,6 @@ def plot_rof(
                 df[layering],
                 categories=layering_order.keys()
             )
-            df = df.sort_values(by=layering, ascending=False)
             # Reverse ordering to line up with layering
             cmap = list(reversed(list(layering_order.values())))
         if isinstance(cmap, dict):
@@ -209,9 +271,21 @@ def plot_rof(
                 df[layering],
                 categories=cmap.keys()
             )
-            df = df.sort_values(by=layering, ascending=False)
             # Reverse ordering to line up with layering
             cmap = list(reversed(list(cmap.values())))
+
+        df = df.sort_values(by=[layering, secondary_sort], ascending=False)
+
+    elif color is not None:
+        if isinstance(cmap, dict):
+            df[color] = pd.Categorical(
+                df[color],
+                categories=cmap.keys()
+            )
+            # Reverse ordering to line up with layering
+            cmap = list(reversed(list(cmap.values())))
+
+            df = df.sort_values(by=[color, secondary_sort], ascending=False)
 
     vdims = [value_name] + [val for val in df.columns if val != value_name]
 
@@ -272,9 +346,9 @@ def plot_hm(
     outline_cmap='CategoryN',
     legend=True,
     height=None,
-    hm_opts={},
-    colorbar_opts={},
-    outline_opts={},
+    hm_opts=None,
+    colorbar_opts=None,
+    outline_opts=None,
 ):
     """Plot a row-by-column heatmap.
 
@@ -326,19 +400,29 @@ def plot_hm(
         Width is then determined automatically to keep wells square. If
         non-square wells are needed, width can be overwritten in
         `hm_opts` kwarg.
-    hm_opts: dict, default empty dict
+    hm_opts: dict, default None
         Holoviews-specific opts to pass to the heatmap. See the
         holoviews docs. Overwrites the base opts if the same opt is
         passed.
-    colorbar_opts: dict, default empty dict
+    colorbar_opts: dict, default None
         Holoviews-specific opts to pass to the heatmap's colorbar. See
         the holoviews docs. Overwrites the base opts if the same opt is
         passed.
-    outline_opts: dict, default empty dict
+    outline_opts: dict, default None
         Holoviews-specific opts to pass to the outline chart. See the
         holoviews docs. Overwrites the base opts if the same opt is
         passed.
+
+    Returns:
+    --------
+    p: Holoviews plot
     """
+    if hm_opts is None:
+        hm_opts = {}
+    if colorbar_opts is None:
+        colorbar_opts = {}
+    if outline_opts is None:
+        outline_opts = {}
     # Get data and metadata
     df, locs, auto_value, case = _parse_data_obj(object)
     if value_name is not None:
@@ -475,5 +559,329 @@ def plot_hm(
             p = p.layout().cols(n_cols)
 
     return p
-    
 
+
+def plot_bar(
+    object,
+    variable=None,
+    value_name=None,
+    split=None,
+    color=None,
+    sort=None,
+    cmap='CategoryN',
+    show_points=None,
+    legend=False,
+    xrotation=0,
+    height=350,
+    width=300,
+    additional_opts={},
+):
+    """Converts a tidy DataFrame a bar plot, taking care to show all
+    the data. Bars are given as the average of each grouping of the
+    variable (which can be further split by the split argument), and
+    the actual data points are overlaid on top.
+    
+    Parameters:
+    -----------
+    object: ns.Plate or pd.DataFrame object
+        Must contain a DataFrame with columns labeled well, row, column,
+        (case-insensitive) and the final column as the label (can be
+        overwritten, see `value_name` kwarg).
+    variable: str
+        Column in DataFrame representing the variable, plotted on
+        the x-axis.
+    value: str
+        Column in DataFrame representing the quantitative value,
+        plotted on the y-axis
+    split: str
+        The names of one or more columns that further specify the
+        way the data is grouped. Defaults to None.
+    sort: str
+        Which column is used to determine the sorting of the data.
+        Defaults to None, and will sort by the condition column
+        (alphabetical) if present, otherwise variable.
+    cmap : The colormap to use. Any Holoviews/Bokeh colormap is fine.
+        Uses Holoviews default if None.
+    show_all : bool
+        If split is not None, whether or not to use a drop-down or
+        to show all the plots (layout). Note that this can be pretty
+        buggy from Holoview's layout system. There is usually a way
+        to how all the info you want, in a nice way. Just play
+        around.
+    show_points : bool
+        Shows all the data points. I don't even know why this is an
+        argument. Default will show points if there are multiple
+        replicates. Unless you have a really good reason, don't
+        change this.
+    legend : str
+        First controls whether or not the legend is shown, then its
+            position. Defaults to False, though 'top' would be a good
+            option, or 'top_left' if using split.
+    height : int
+        The height of the chart.
+    width : int
+        The width of the chart.
+    additional_opts : dictionary, default {}
+        A dictionary to pass additional Holoviews options to the
+        chart. Flexible; will try all options and only use the
+        ones that did not raise an exception. Not verbose.
+
+    Returns:
+    --------
+    p: Holoviews chart
+    """
+    # Get data and metadata
+    df, locs, auto_value, case = _parse_data_obj(object)
+    if value_name is not None:
+        check_df_col(df, value_name, 'value_name')
+    else:
+        value_name = auto_value
+    
+    # Check columns
+    check_df_col(df, variable, 'variable')
+    check_df_col(df, split, 'split')
+    check_df_col(df, sort, 'sort')
+
+    if not isinstance(split, (list, tuple)):
+        split = [split]
+    replicates, df = check_replicates(df, variable, value, split)
+
+    # Sort
+    if sort is not None:
+        check_df_col(data, sort, name="sort")
+        df = df.sort_values(by=sort).reset_index(drop=True)
+
+    # Encode color
+    if color is None:
+        color = variable
+
+    # Decide colormap
+    if cmap == 'default':
+        number = len(data[color].unique())
+        try:
+            cmap = getattr(bokeh.palettes, cmap)(number+3)[1:-1]
+        except:
+            cmap = getattr(bokeh.palettes, 'viridis')(number+3)[1:-1]
+
+    # Pull out available encodings (column names)
+    encodings = [*list(data.columns)]
+
+    # Set options (this is probably horribly inefficient right now)
+    base_opts = dict(
+        height=height,
+        width=width,
+        ylim=(0, 1.1*np.max(data[value])),
+        xrotation=xrotation,
+        color=color,
+        cmap=cmap,
+        show_legend=legend,
+    )
+
+    bar_opts = base_opts
+    scat_opts = dict(size=6, fill_alpha=0.2, color='black')
+
+    # Make bar chart
+    bars = hv.Bars(
+        data,
+        variable,
+        [('mean_' + str(value), value), *encodings],
+    ).opts(**bar_opts)
+
+    # Determine single-point entries
+    args = [elem for elem in [variable] + split if elem is not None]
+    counts = (data.groupby(args).count() ==
+                1).reset_index()[[variable, value]]
+    counts.columns = [variable, 'counts']
+
+    # Get list of singlets to drop from plotting df
+    singlets = counts[counts['counts']][variable].to_list()
+
+    # Make scatter chart
+    points = hv.Scatter(
+        data[~data[variable].isin(singlets)],
+        variable,
+        [value, *encodings],
+    ).opts(**scat_opts)
+
+    # Make the split
+    if split != [None]:
+        bars = bars.groupby(split).opts(**bar_opts)
+        points = points.groupby(split).opts(**scat_opts)
+
+        # If split, show as side-by-side, or dropdown
+        if show_all is True:
+            bars = bars.layout()
+            points = points.layout()
+
+    # Output chart as only bars, or bars and points
+    if show_points == 'default':
+        if replicates:
+            chart = bars * points
+        else:
+            chart = bars
+    elif show_points:
+        chart = bars * points
+    else:
+        chart = bars
+
+    return chart
+
+
+def plot_curve(
+    self,
+    variable,
+    value,
+    condition=None,
+    split=None,
+    sort=None,
+    cmap=None,
+    show_all=False,
+    show_points="default",
+    legend=False,
+    height=350,
+    width=500,
+    additional_opts={},
+):
+
+    """Converts a tidy DataFrame containing timecourse-like data
+    into a plot, taking care to show all the data. A line is
+    computed as the average of each set of points (grouped by the
+    condition and split, if present), and the actual data points are 
+    overlaid on top.
+    
+    Parameters:
+    -----------
+    variable : str
+        Column in DataFrame representing a timecourse-like variable,
+        plotted on the x-axis.
+    value : str
+        Column in DataFrame representing the quantitative value,
+        plotted on the y-axis.
+    condition : str
+        The names of one or more columns that specifies way the data
+        is grouped for a single chart. Defaults to None.
+    split :  str
+        The names of one or more columns that further specify the
+        way the data is grouped between different charts. Defaults
+        to None.
+    sort : str
+        Which column is used to determine the sorting of the data.
+        Defaults to None, and will sort by the condition column
+        (alphabetical) if present, otherwise `variable`.
+    cmap : The colormap to use. Any Holoviews/Bokeh colormap is fine.
+        Uses Holoviews default if None.
+    show_all : bool
+        If split is not None, whether or not to use a drop-down or
+        to show all the plots (layout). Note that this can be pretty
+        buggy from Holoview's layout system. There is usually a way
+        to how all the info you want, in a nice way. Just play
+        around.
+    show_points : bool
+        Shows all the data points. I don't even know why this is an
+        argument. Default will show points if there are multiple
+        replicates. Unless you have a really good reason, don't
+        change this.
+    legend : str
+        First controls whether or not the legend is shown, then its
+            position. Defaults to False, though 'top' would be a good
+            option, or 'top_left' if using split.
+    height : int
+        The height of the chart.
+    width : int
+        The width of the chart.
+    additional_opts : dictionary
+        A dictionary to pass additional Holoviews options to the
+        chart. Flexible; will try all options and only use the
+        ones that did not raise an exception. Not verbose.
+    
+    Returns:
+    --------
+    chart : the final Holoviews chart
+    """
+    # Check columns
+    check_df_col(self.data, variable, name="variable")
+    check_df_col(self.data, value, name="value")
+    check_df_col(self.data, condition, name="condition")
+    check_df_col(self.data, split, name="split")
+    check_df_col(self.data, sort, name="sort")
+
+    # Check for replicates; aggregate df
+    if not isinstance(condition, (list, tuple)):
+        condition = [condition]
+    if not isinstance(split, (list, tuple)):
+        split = [split]
+    groups = [grouping for grouping in (*condition, *split) if grouping is not None]
+    if groups == []:
+        groups = None
+    replicates, data = check_replicates(self.data, variable, value, groups)
+
+    # Pull out available encodings (column names)
+    encodings = [*list(data.columns)]
+
+    # Set options
+    base_opts = dict(height=height, width=width, padding=0.1)
+
+    if legend is not False:
+        base_opts.update(dict(show_legend=True))
+        if legend is not True:
+            additional_opts.update(dict(legend_position=legend))
+
+    line_opts = base_opts
+    scat_opts = dict(size=6, fill_alpha=0.75, tools=["hover"])
+    scat_opts.update(base_opts)
+
+    # Now, start to actually make the chart
+    points = hv.Scatter(data, variable, [value, *encodings]).opts(**scat_opts)
+
+    lines = hv.Curve(data, variable, [("Mean of " + str(value), value), *encodings]).opts(
+        **line_opts
+    )
+
+    if groups is not None:
+        points = points.groupby(groups).opts(**scat_opts)
+        lines = lines.groupby(groups).opts(**line_opts)
+
+    # Output chart as desired
+    if show_points == "default":
+        if replicates is True:
+            chart = lines * points
+        else:
+            chart = lines
+    elif show_points is True:
+        chart = lines * points
+    else:
+        chart = lines
+
+    # Overlay each line plot
+    if condition is not None:
+        chart = chart.overlay(condition)
+
+    # Split among different charts
+    if split is not None:
+
+        # If split, show as side-by-side, or dropdown
+        if show_all is True:
+            chart = chart.layout(split)
+
+    # Assign the additional options, as allowed
+    if additional_opts != {}:
+        try:
+            chart = chart.options(**additional_opts)
+        except ValueError:
+            good_opts = {}
+            bad_opts = {}
+
+            for opt in additional_opts.keys():
+                try:
+                    test = chart.options(additional_opts[opt])
+                    good_opts[opt] = additional_opts[opt]
+                except ValueError:
+                    bad_opts[opt] = additional_opts[opt]
+
+                chart = chart.options(**good_opts)
+
+    # Assign color
+    if cmap is not None:
+        chart = chart.opts({"Scatter": {"color": cmap}, "Curve": {"color": cmap}})
+
+    return chart
