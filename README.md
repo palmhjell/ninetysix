@@ -3,7 +3,7 @@
 # ninetysix
 A general package for annotating, processing, and visualizing 96-well* plate data.
 
-(*$n$-well, really.)
+(*_n_-well, really.)
 
 ### Note: This is a work in progress, and not yet ready for major release or use. 
 
