@@ -48,4 +48,7 @@ Plotting functions are available as `Plate` methods or as functions from `ns.viz
 <img src="_assets/normalize.png" alt="ex6" width="700"/>
 <img src="_assets/rof.png" alt="ex7" width="500"/>
 
+Finally, we can make a heatmap of the plate, with the control wells highlighted (excluding the major group to reduce clutter, which in this case would just be the 'experiment' wells.).
+<img src="_assets/hm.png" alt="ex7" width="800"/>
+
 ### More coming soon!
