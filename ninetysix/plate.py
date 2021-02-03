@@ -25,7 +25,7 @@ class Plate():
     instantiation to result in the construction of condition-assigned,
     well-value pairs. Well column remains at 0 index, working value
     column remains -1 index to support rapid, implicit visualization of
-    pertinent well/value data.
+    pertinent well-value data.
 
     Parameters:
     -----------
@@ -33,14 +33,15 @@ class Plate():
         Given a dict or DataFrame, the data must contain a key/column
         name that identifies 'well' (case-insentivie). The value of 
         interest can be assigned a name in the final DataFrame via
-        'value_name' kwarg. Passing in an Iterable assumes (well, value)
-        ordering and assigns as such. Passing a string will assume a
-        path to a pandas-readable csv or excel file, using the default
-        settings. If more control over the import of this file is
-        needed, import to a pandas DataFrame first, then pass this to
-        'data'.
-    value_name: string
-        Specification or assignment of value name.
+        `value_name` kwarg. Passing in an Iterable assumes tuples of
+        `(well, value)` ordering and assigns as such. Passing a string
+        will assume a path to a pandas-readable csv or excel file, using
+        the default settings. If more control over the import of this
+        file is needed, import to a pandas DataFrame first, then pass
+        this to `data`.
+    value_name: string or list
+        Specification or assignment of value name(s). If given as a
+        list, the last entry is used as the primary working value.
     annotate: nested dictionary or template excel file
         Maps wells to conditions in new columns of a tidy DataFrame. The
         outermost keys give the name of the resulting column. The inner
@@ -52,14 +53,12 @@ class Plate():
         key will be assigned to all other non-specified wells (else they
         get a value of `None`). Also takes a specific excel spreadsheet
         format; see the annotate_wells() method or  parsers.well_regex() function for more details.
-    lowercase: bool, default None
-        Case of column indexes. True = all lowercase, False = all
-        capitalized. None will default to lowercase or the case of the
-        'well' column, if given, or keep the columns as-is.
     zero_padding: bool, default None
         Whether or not the wells are (or should be) zero-padded, e.g.,
         A1 or A01. If None, determines this from what's given. If True
         or False, will update the wells to match this state.
+    case: str method, default str.lower
+        Assigns the case of auto-generated DataFrame columns.
     pandas_attrs: bool, default True
         Whether or not to assign pandas attributes and methods directly
         to Plate object rather than only being accessible via the
@@ -123,8 +122,8 @@ class Plate():
         data=None,
         value_name=None,
         annotate=None,
-        case=None,
         zero_padding=None,
+        case=str.lower,
         # fill_plate=False,
         # n_wells=96,
         pandas_attrs=True,
@@ -137,6 +136,7 @@ class Plate():
         # Assign attributes
         self.data = data
         self.value_name = value_name
+        self.case = case
         self._init_annotations = annotate
         
         # For easier unit testing: do only when passing
@@ -144,25 +144,39 @@ class Plate():
         if self._passed:
             
             # Get info from well and value input
-            self._well_case, self._well_list = self._get_well_info()
-            self._value_case = self._get_value_case()
-
-            # Update case via @case.setter
-            self._auto_case = None
-            self.case = case
+            self._well_str, self._well_list = self._get_well_info()
 
             # Update well zero padding via @zero_padding.setter
             self.zero_padding = zero_padding
 
+            # Make initial DataFrame
+            self.df, self._col_check = self._init_df()
+
+            # Remember whether 'row' and 'column' were present
+            if self._col_check:
+                self._row_str = self._col_check[0]
+                self._col_str = self._col_check[1]
+            else:
+                self._row_str = self.case('row')
+                self._col_str = self.case('column')
+            
             # Instantiate three highest-level indexes, updated as needed
-            self.locations = [self._set_case(loc, auto=True)
-                              for loc in ['well', 'row', 'column']]
-            self.annotations = []
+            self.locations = [
+                self._well_str, self._row_str, self._col_str
+            ]
+            self.annotations = [
+                col for col in self.df.columns
+                if col not in [*self.locations, self.value_name]]
             self.values = [self.value_name]
+
+            # 
             self.column_dict = self._update_column_dict()
 
-            # Make DataFrame(s)
-            self.df = self._init_df()
+            # Annotate
+            if self._init_annotations is not None:
+                self = self.annotate_wells(self._init_annotations)
+
+            # Organize DataFrame(s)
             self.mi_df = self._multi_index_df()
             self._standardize_df()
 
@@ -241,7 +255,7 @@ class Plate():
 
     @property
     def value_name(self):
-        """Sets value name from 'value_name', or sets to 'value',
+        """Sets value name from `value_name`, or sets to 'value',
         unless obtained from the final column of a DataFrame.
         """
         return self._value_name
@@ -265,11 +279,10 @@ class Plate():
     @locations.setter
     def locations(self, locations):
         self._locations = locations
+        self._update_column_dict()
 
     @locations.getter
     def locations(self):
-        self._locations = [self._set_case(loc)
-                           for loc in self._locations]
         return self._locations
 
 
@@ -285,8 +298,6 @@ class Plate():
 
     @annotations.getter
     def annotations(self):
-        self._annotations = [self._set_case(ann)
-                             for ann in self._annotations]
         return self._annotations
 
 
@@ -303,7 +314,6 @@ class Plate():
 
     @values.getter
     def values(self):
-        self._values = [self._set_case(val) for val in self._values]
         return self._values
 
 
@@ -325,22 +335,12 @@ class Plate():
     def case(self, case):
         self._case = case
 
-        if case is not None:
-            cases = (str.lower, str.title, str.capitalize, str.upper)
-            if case not in cases:
-                raise ValueError(
-                    'Only string-class case types are allowed (e.g., '
-                    'str.lower, str.title)'
-                )
-        else:
-            if self._well_case == self._value_case:
-                # Use one of them for assigning case to auto-generated cols
-                self._auto_case = self._well_case
-            elif self._well_case is None:
-                self._auto_case = self._value_case
-            else:
-                # add warning?
-                self._auto_case = self._value_case
+        cases = (str.lower, str.title, str.capitalize, str.upper)
+        if case not in cases:
+            raise ValueError(
+                'Only string-class case types are allowed. Choose one '
+                'of [str.lower, str.title, str.capitalize, str.upper].'
+            )
 
         self._standardize_df()
 
@@ -365,83 +365,44 @@ class Plate():
         self._standardize_df()
 
 
-    def _set_case(self, string, auto=False):
-        """Sets the case of a string."""
-        if self.case is not None:
-            string = self.case(string)
+    def _get_well_info(self):
+        """After self._passing is True, determines well case and stores
+        list of wells as attribute.
+        """
+        # If self.data is not DataFrame (or initially dict)
+        if not isinstance(self.data, pd.DataFrame):
+            self._well_str = 'well'
+            self._well_list = list(zip(*self.data)).copy()[0]
         else:
-            if auto:
-                string = self._auto_case(string)
-        return string
-    
-    
-    def _get_well_case(self):
-        """Returns a function to standardize the case of the well index.
-        """
-        if isinstance(self.data, pd.DataFrame):
-            well = [col for col in self.data.columns
-                        if col.lower() == 'well'][0]
-        if isinstance(self.data, dict):
-            well = [key for key in self.data if key.lower() == 'well'][0]
-        if isinstance(self.data, list):
-            well = 'well'
-
-        case = None
-        for method in (str.lower, str.capitalize, str.upper):
-            if method(well) == well:
-                case = method
-
-        return case
-
-
-    def _get_value_case(self):
-        """Returns a function to standardize the case of the value
-        index.
-        """
-        case = None
-        for method in (str.lower, str.capitalize, str.upper):
-            if method(self._value_name) == self._value_name:
-                case = method
-
-        return case
+            if isinstance(self.data, pd.DataFrame):
+                cols = self.data.columns
+            well_cols = [col for col in cols if col.lower() == 'well']
+            self._well_str = well_cols[0]
+            self._well_list = self.data[well_cols[0]].copy()
+        return self._well_str, self._well_list
 
 
     def _update_column_dict(self):
         """Keeps track of multi-index indexes, updates as necessary.
         """
-        col_dict_keys = [self._set_case(key)
+        col_dict_keys = [self.case(key)
                          for key in ('locations', 'annotations', 'values')]
         try:
             col_dict_vals = (self.locations, self.annotations, self.values)
         except AttributeError:
             return
 
+        # Update case of 'row' and 'column' if auto-generated
+        if not self._col_check:
+            for i, val in enumerate(self._locations):
+                if str(val).lower() in ('row', 'column'):
+                    self._locations[i] = self.case(val)
+        
         self.column_dict = {
             key: val for key, val in zip(col_dict_keys, col_dict_vals)
         }
 
         return self.column_dict
-
-
-    def _get_well_info(self):
-        """After self._passing is True, determines well case and stores
-        list of wells as attribute.
-        """
-        if self.data is None:
-            self._well_case = None
-            self._well_list = self.wells.copy()
-        elif not isinstance(self.data, pd.DataFrame):
-            self._well_case = None
-            self._well_list = list(zip(*self.data)).copy()[0]
-        else:
-            if isinstance(self.data, pd.DataFrame):
-                cols = self.data.columns
-            well = [col for col in cols if col.lower() == 'well'][0]
-            for method in (str.lower, str.capitalize, str.upper):
-                if method(well) == well:
-                    self._well_case = method
-            self._well_list = self.data[well].copy()
-        return self._well_case, self._well_list
 
 
     def _remove_column(self, column):
@@ -455,9 +416,6 @@ class Plate():
     
     def _init_df(self):
         """Given passing inputs, sets up the initial DataFrame."""
-        # Use given case
-        well_string = self._set_case('well')
-
         if isinstance(self.data, pd.DataFrame):
             self.df = self.data.copy()
         elif isinstance(self.data, dict):
@@ -465,57 +423,42 @@ class Plate():
         elif isinstance(self.data, list):
             self.df = pd.DataFrame(
                 data=self.data,
-                columns=[well_string, self.value_name]
+                columns=[self._well_str, self.value_name]
             )
 
         # Add row and column if not already there
-        col_check = [col for col in self.df.columns
-                     if col.lower() in ('row', 'column')]
+        col_check = sorted([col for col in self.df.columns
+                     if str(col).lower() in ('row', 'column')], reverse=True)
 
         if not col_check:
-            rows, cols = zip(*self.df[well_string].apply(
+            rows, cols = zip(*self.df[self._well_str].apply(
                 lambda well: (well[0], int(well[1:]))
             ))
 
-            for val, name in zip((rows, cols), ('row', 'column')):
-                name = self._set_case(name, auto=True)
+            for val, name in zip((cols, rows), ('column', 'row')):
+                name = self.case(name)
                 self.df.insert(1, name, val)
 
         else:
-            for col in col_check:
-                val = self.df[col].values
-                del self.df[col]
-                idx = ['row', 'column'].index(col.lower()) + 1
-                self.df.insert(idx, col, val)
+            for name in reversed(col_check):
+                val = self.df[name].values
+                del self.df[name]
+                self.df.insert(1, name, val)
 
-        # Assign any other DataFrame columns to annotations
-        assigned_cols = [*self.locations, *self.annotations, *self.values]
-        unassigned_cols = [col for col in self.df.columns
-                           if col not in assigned_cols]
-        self.annotations += unassigned_cols
-
-        # Annotate
-        if self._init_annotations is not None:
-            self = self.annotate_wells(self._init_annotations)
-
-        return self.df
+        return self.df, col_check
 
 
     def _multi_index_df(self):
         """Sets up a multi-index DataFrame, for easier arraying and
         slicing of data."""
-        wells = ('well', 'Well')
-        mi_df = self.df.copy()
-        well_string = [col for col in self.df.columns if col in wells]
-
         # Well as index
-        mi_df = mi_df.set_index(well_string)
+        mi_df = self.df.copy().set_index(self._well_str)
 
         # Set up multi-index columns
         tuples = []
         for key, value in self.column_dict.items():
             tuples += [(key, val) for val in value
-                       if val not in wells]
+                       if val != self._well_str]
 
         # Create the multi-index
         mi_cols = pd.MultiIndex.from_tuples(tuples)
@@ -538,12 +481,18 @@ class Plate():
         """
         # Exit if plate lists and/or self.df have not been created yet
         try:
-            self.df.columns = [self._set_case(col)
-                               for col in self.df.columns]
+            cols = self.df.columns.tolist()
         except AttributeError:
             return
 
         self._update_column_dict()
+
+        # Update auto-generated columns
+        if not self._col_check:
+            for i, val in enumerate(cols):
+                if str(val).lower() in ('row', 'column'):
+                    cols[i] = self.case(val)
+            self.df.columns = cols
         
         # Update multi-index df
         self.mi_df = self._multi_index_df()
@@ -555,10 +504,9 @@ class Plate():
         self.df = _df.copy()
 
         # Update padding
-        well_string = self._set_case('well')
         self._well_list = [pad(well, padded=self.zero_padding)
                            for well in self._well_list]
-        self.df[well_string] = self._well_list
+        self.df[self._well_str] = self._well_list
 
 ###########################
 # Plate-specific methods
@@ -659,7 +607,7 @@ class Plate():
                         default = working_annotations[key]
 
                 # Make new columns
-                wells = self.df[self._well_case('well')]
+                wells = self.df[self._well_str]
                 self.df[column] = wells.map(working_annotations.get)
                 self.df[column] = self.df[column].replace({None: default})
 

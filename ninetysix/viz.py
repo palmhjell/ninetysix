@@ -53,7 +53,7 @@ def _parse_data_obj(object):
         try:
             df = object.df.copy()
             value_name = object.value_name
-            case = object._standardize_case
+            case = object.case
         except AttributeError:
             raise ValueError(
                 'Data format not recognized, only pandas.DataFrame and '\
