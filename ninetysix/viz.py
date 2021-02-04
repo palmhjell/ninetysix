@@ -338,7 +338,7 @@ def plot_scatter(
 
 
 def plot_rof(*args, **kwargs):
-    f"""Create a retention of function curve, or a rank-ordered scatter
+    """Create a retention of function curve, or a rank-ordered scatter
     plot.
 
     Parameters:
@@ -671,28 +671,28 @@ def plot_bar(
         Which column is used to determine the sorting of the data.
         Defaults to None, and will sort by the condition column
         (alphabetical) if present, otherwise variable.
-    cmap : The colormap to use. Any Holoviews/Bokeh colormap is fine.
+    cmap: The colormap to use. Any Holoviews/Bokeh colormap is fine.
         Uses Holoviews default if None.
-    show_all : bool
+    show_all: bool
         If split is not None, whether or not to use a drop-down or
         to show all the plots (layout). Note that this can be pretty
         buggy from Holoview's layout system. There is usually a way
         to how all the info you want, in a nice way. Just play
         around.
-    show_points : bool
+    show_points: bool
         Shows all the data points. I don't even know why this is an
         argument. Default will show points if there are multiple
         replicates. Unless you have a really good reason, don't
         change this.
-    legend : str
+    legend: str
         First controls whether or not the legend is shown, then its
             position. Defaults to False, though 'top' would be a good
             option, or 'top_left' if using split.
-    height : int
+    height: int
         The height of the chart.
-    width : int
+    width: int
         The width of the chart.
-    additional_opts : dictionary, default {}
+    additional_opts: dictionary, default {}
         A dictionary to pass additional Holoviews options to the
         chart. Flexible; will try all options and only use the
         ones that did not raise an exception. Not verbose.
@@ -813,7 +813,6 @@ def plot_curve(
     width=500,
     additional_opts={},
 ):
-
     """Converts a tidy DataFrame containing timecourse-like data
     into a plot, taking care to show all the data. A line is
     computed as the average of each set of points (grouped by the
@@ -822,52 +821,52 @@ def plot_curve(
     
     Parameters:
     -----------
-    variable : str
+    variable: str
         Column in DataFrame representing a timecourse-like variable,
         plotted on the x-axis.
-    value : str
+    value: str
         Column in DataFrame representing the quantitative value,
         plotted on the y-axis.
-    condition : str
+    condition: str
         The names of one or more columns that specifies way the data
         is grouped for a single chart. Defaults to None.
-    split :  str
+    split:  str
         The names of one or more columns that further specify the
         way the data is grouped between different charts. Defaults
         to None.
-    sort : str
+    sort: str
         Which column is used to determine the sorting of the data.
         Defaults to None, and will sort by the condition column
         (alphabetical) if present, otherwise `variable`.
-    cmap : The colormap to use. Any Holoviews/Bokeh colormap is fine.
+    cmap: The colormap to use. Any Holoviews/Bokeh colormap is fine.
         Uses Holoviews default if None.
-    show_all : bool
+    show_all: bool
         If split is not None, whether or not to use a drop-down or
         to show all the plots (layout). Note that this can be pretty
         buggy from Holoview's layout system. There is usually a way
         to how all the info you want, in a nice way. Just play
         around.
-    show_points : bool
+    show_points: bool
         Shows all the data points. I don't even know why this is an
         argument. Default will show points if there are multiple
         replicates. Unless you have a really good reason, don't
         change this.
-    legend : str
+    legend: str
         First controls whether or not the legend is shown, then its
-            position. Defaults to False, though 'top' would be a good
-            option, or 'top_left' if using split.
-    height : int
+        position. Defaults to False, though 'top' would be a good
+        option, or 'top_left' if using split.
+    height: int
         The height of the chart.
-    width : int
+    width: int
         The width of the chart.
-    additional_opts : dictionary
+    additional_opts: dictionary
         A dictionary to pass additional Holoviews options to the
         chart. Flexible; will try all options and only use the
         ones that did not raise an exception. Not verbose.
     
     Returns:
     --------
-    chart : the final Holoviews chart
+    chart: the final Holoviews chart
     """
     # Check columns
     check_df_col(self.data, variable, name="variable")
