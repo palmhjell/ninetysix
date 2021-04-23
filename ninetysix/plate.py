@@ -680,17 +680,49 @@ class Plate():
         value=None,
         to=None,
         zero=None,
+        groupby=None,
         # devs=False,
         update_value=None,
         prefix='normalized_',
     ):
         """Normalizes the value column to give the max a value of 1,
-        returning a new column named 'normalized_[value]'. Accepts
-        different value kwargs and can explicitly scale from 0 to 1
-        'zero=True'. Alternatively, scales relative to a specific
-        assignment of a condition column, i.e. to 'Standard' within
-        the condition 'Controls' can be set to a value of 1.
-        Additionally can assign a lower 0 value in the same way.
+        returning a new column named '[prefix][value]', e.g.,
+        'normalized_value. Accepts different value kwargs and can
+        explicitly scale from 0 to 1 'zero=True'. Alternatively, scales relative to a specific assignment of a condition column, i.e. to 'Standard' within the condition 'Controls' can be set to a value
+        of 1 via the kwarg `to='Controls=Standard'`. Additionally can
+        assign a lower 0 value in the same way.
+
+        Parameters:
+        -----------
+        value: str or list of str, default None
+            Name of column to normalize, default being value_name.
+        to: str, default None
+            Which group to set as the normal (1) value. If None, the max
+            value for each column in `value` is set to 1 and all other
+            values are scaled to this. If a condition is passed, e.g., `to='Controls=Standard'`, the mean of the wells labeled
+            'Standard' in the column 'Controls' will be set to 1 for
+            each value column.
+        zero: str or bool, default None
+            Whether or not to set the lowest value as an explicit zero
+            (`zero=True`) or just to scale all values as is (`zero=
+            False`), or to set the mean of a specific group as the zero
+            value as in the `to` kwarg, e.g., `zero='Controls=Negative'`
+            would set the  wells labeled 'Negative' in the column
+            'Controls' to zero (this is useful when your 'zero'
+            assay condition does not actually give values of zero).
+        groupby: str, default None
+            Whether to split the normalization across many groups in the
+            column (or columns) specified in groupby, e.g., for each
+            value in the column 'Plate'.
+        update_value: str or bool, default None
+            Whether or not (or what) to set as the new Plate value_name.
+            If True and `value` is not a list, sets `value` to right-
+            most column. If a string, sets that normalized value to the
+            new `value_name`. If None or False, just adds a new value
+            and leaves the old `value_name`. 
+        prefix: str, default 'normalized_'
+            What to add to the new column name to indicate that it has
+            been normalized.
         """
         # Determine how to update the value
         # TODO: does this need a warning for True when type(value) == list?
@@ -712,72 +744,99 @@ class Plate():
         else:
             values = value
 
-        # Iterate through each value
-        for value in values:
-            check_df_col(self.df, value, name='value')
+        # Set up groups
+        if not isinstance(groupby, (tuple, list)):
+            groupby = [groupby]
 
-            norm_string = f'{prefix}{value}'
+        for group in groupby:
+            check_df_col(self.df, group, name='groupby')
 
-            # Set the zero val
-            if zero == True:
-                zero_val = self.df[value].min()
-            elif isinstance(zero, str):
-                split = zero.split('=')
-                if len(split) != 2:
-                    raise ValueError(
-                        f"'zero' value specified incorrectly, must be of the form 'column_name=value_name'."
-                    )
+        # Group or create fake groupby object
+        unique_dfs = (self.df.groupby(groupby) if groupby != [None]
+                      else [(None, self.df.copy())])
 
-                col, val = split
+        df_list = []
+        # Iterate through each dataframe
+        for name, sub_df in unique_dfs:
 
-                # Check that col in columns
-                check_df_col(self.df, col, name='column')
+            # Iterate through each value
+            for value in values:
+                check_df_col(sub_df, value, name='value')
 
-                # Check that the given value is found in the column
-                if val not in [str(i) for i in self.df[col]]:
-                    raise ValueError(
-                        f"The value '{val}' is not a value in the column '{col}'."
-                    )
-                subset = [val == str(i) for i in self.df[col]]
-                zero_val = self.df[subset][value].mean()
-            elif zero is None or zero == False:
-                zero_val = 0
-            else:
-                raise TypeError(
-                    f"Type of 'zero' argument is incorrectly specified. Must be bool or string.")
+                norm_string = f'{prefix}{value}'
 
-            self.df[norm_string] = self.df[value] - zero_val
+                # Set the zero val
+                if zero == True:
+                    zero_val = sub_df[value].min()
+                elif isinstance(zero, str):
+                    split = zero.split('=')
+                    if len(split) != 2:
+                        raise ValueError(
+                            f"'zero' value specified incorrectly, must be of the form 'column_name=value_name'."
+                        )
 
-            # Set the one val
-            if to is None:
-                one_val = self.df[norm_string].max()
-            elif isinstance(to, str):
-                split = to.split('=')
-                if len(split) != 2:
-                    raise ValueError(
-                        f"'to' value specified incorrectly, must be of the form 'column_name=value_name'."
-                    )
-                
-                col, val = split
-                
-                # Check that col in columns
-                check_df_col(self.df, col, name='column')
+                    col, val = split
 
-                # Check that the given value is found in the column
-                if val not in [str(i) for i in self.df[col]]:
-                    raise ValueError(
-                        f"The value '{val}' is not a value in the column '{col}'."
-                    )
-                subset = [val == str(i) for i in self.df[col]]
-                one_val = self.df[subset][norm_string].mean()
-            else:
-                raise TypeError(f"Type of 'to' argument is incorrectly specified. Must be bool or string.")
+                    # Check that col in columns
+                    check_df_col(sub_df, col, name='column')
 
-            self.df[norm_string] = self.df[norm_string] / one_val
+                    # Check that the given value is found in the column
+                    if val not in [str(i) for i in sub_df[col]]:
+                        raise ValueError(
+                            f"The value '{val}' is not a value in the column '{col}'."
+                        )
+                    subset = [val == str(i) for i in sub_df[col]]
+                    zero_val = sub_df[subset][value].mean()
+                elif zero is None or zero == False:
+                    zero_val = 0
+                else:
+                    raise TypeError(
+                        f"Type of 'zero' argument is incorrectly specified. Must be bool or string.")
 
-            # Update self._values list
-            if norm_string not in self._values:
-                self._values.insert(-2, norm_string)
+                sub_df[norm_string] = sub_df[value] - zero_val
+
+                # Set the one val
+                if to is None:
+                    one_val = sub_df[norm_string].max()
+                elif isinstance(to, str):
+                    split = to.split('=')
+                    if len(split) != 2:
+                        raise ValueError(
+                            f"'to' value specified incorrectly, must be of the form 'column_name=value_name'."
+                        )
+                    
+                    col, val = split
+                    
+                    # Check that col in columns
+                    check_df_col(sub_df, col, name='column')
+
+                    # Check that the given value is found in the column
+                    if val not in [str(i) for i in sub_df[col]]:
+                        raise ValueError(
+                            f"The value '{val}' is not a value in the column '{col}'."
+                        )
+                    subset = [val == str(i) for i in sub_df[col]]
+                    one_val = sub_df[subset][norm_string].mean()
+                else:
+                    raise TypeError(f"Type of 'to' argument is incorrectly specified. Must be bool or string.")
+
+                sub_df[norm_string] = sub_df[norm_string] / one_val
+
+                # Update self._values list
+                if norm_string not in self._values:
+                    self._values.insert(-2, norm_string)
+
+                # Store in df_list
+                df_list.append(sub_df)
+
+            # Add new column in correct order
+            mergers = [self._well_str,
+                       *[elem for elem in groupby if elem is not None]]
+            _df = self.df[mergers].merge(
+                pd.concat(df_list), on=mergers
+            )
+            
+            self.df[norm_string] = _df[norm_string]
         
         # Clean up
         if update_value:
