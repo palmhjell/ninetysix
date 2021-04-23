@@ -94,7 +94,7 @@ class Plate():
     ...     'Area': [1, 0.5],
     ...     'RT': [0.42, 0.41],
     ... }
-    >>> ns.Plate(data=input_dict, value_name='Area', lowercase=False)
+    >>> ns.Plate(data=input_dict, value_name='Area', case=str.capitalize)
         Well     Row   Column      RT     Area
     0   'A01'    'A'        1    0.42        1
     1   'A02'    'A'        2    0.41      0.5
@@ -107,14 +107,14 @@ class Plate():
     ... }
     >>> controls = {
     ...     'controls': {
-    ...         'A1': 'Experiment',
-    ...         'A2': 'Negative',
+    ...         'A1': 'experiment',
+    ...         'A2': 'negative',
     ...     }
     ... }
     >>> ns.Plate(data=input_dict, value_name='area', annotate=controls)
         well    row   column      RT       controls    area
-    0   'A1'    'A'        1    0.42   'Experiment'       1
-    1   'A2'    'A'        2    0.41     'Negative'     0.5
+    0   'A1'    'A'        1    0.42   'experiment'       1
+    1   'A2'    'A'        2    0.41     'negative'     0.5
     """
 
     def __init__(
