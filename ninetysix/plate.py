@@ -657,10 +657,10 @@ class Plate():
             df_map = df_map.replace({np.nan: None})
 
             # Standardize case and merge
-            df_map.columns = [self._set_case(col)
+            df_map.columns = [self.case(col)
                              for col in df_map.columns]
 
-            mergers = [self._set_case(col)
+            mergers = [self.case(col)
                       for col in ['well', 'column', 'row']]
 
             self.df = self.df.merge(df_map, on=mergers)

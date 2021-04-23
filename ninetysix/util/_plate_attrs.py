@@ -7,7 +7,6 @@ except ImportError:
     pf = None
 
 import ninetysix as ns
-from ..viz import *
 
 # For placing viz plot methods on Plate
 def _get_viz_attr(Plate, plot):
