@@ -722,6 +722,7 @@ def plot_bar(
     # Check columns
     check_df_col(df, variable, 'variable')
     check_df_col(df, split, 'split')
+    check_df_col(df, color, 'color')
     check_df_col(df, sort, 'sort')
 
     # Auto-colomapping
@@ -744,6 +745,10 @@ def plot_bar(
     if color is None:
         color = variable
 
+    # If color is the value column, make it the mean
+    if color == value:
+        color = f'mean_{value}'
+
     # Pull out available encodings (column names)
     encodings = [*list(df.columns)]
 
@@ -765,7 +770,7 @@ def plot_bar(
     bars = hv.Bars(
         df,
         variable,
-        [('mean_' + str(value), value), *encodings],
+        [(f'mean_{value}', value), *encodings],
     ).opts(**bar_opts)
 
     # Determine single-point entries
