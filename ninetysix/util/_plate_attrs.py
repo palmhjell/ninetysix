@@ -30,9 +30,19 @@ def _set_viz_attrs(Plate):
 # pandas_flavor (pf) helps return pd.DataFrame output as Plate
 if pf is not None:
     @pf.register_dataframe_method
-    def as_plate(df, value):
+    def as_plate(df, locations, values):
         """Adds a method .as_plate() to wrap pd.DataFrame as ns.Plate"""
-        return ns.Plate(df, value_name=value)
+        # Create plate object with correct value_name
+        plate = ns.Plate(df, value_name=values[-1])
+
+        # Add locations
+        plate.locations = locations
+
+        # Add values, keeping value_name correct
+        for value in values[:-1]:
+            plate = plate.set_as_values(value, value_name=values[-1])
+        
+        return plate
 
     def _get_pandas_attrs(Plate, attr_name):
         """Creates wrappers for pandas functions to Plate.df"""
@@ -54,7 +64,9 @@ if pf is not None:
 
                 # .as_plate() method returns DataFrame back as Plate object
                 else:
-                    output = attr(Plate.df, *args, **kwargs).as_plate(Plate.value_name)
+                    output = attr(Plate.df, *args, **kwargs).as_plate(
+                        Plate.locations, Plate.values
+                    )
                 
                 return output
             

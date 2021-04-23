@@ -8,7 +8,9 @@ import pandas as pd
 import holoviews as hv
 hv.extension('bokeh')
 
-from .util import check_inputs, check_annotations, check_df_col
+from .util import (
+    check_inputs, check_annotations, check_df_col
+)
 
 class Colors():
     """Mild color palette."""
@@ -60,9 +62,14 @@ def _parse_data_obj(object):
                 'ninetysix.Plate objects accepted.'
             )
 
-    well, row, col = _get_ordered_locs(df)
+    # Get well, row, and column values
+    try:
+        well, row, col = _get_ordered_locs(df)
+        locs = (well, row, col)
+    except ValueError:
+        locs = None
 
-    return df, (well, row, col), value_name, case
+    return df, locs, value_name, case
 
 
 def _center_colormap(data, cmap_center):
@@ -339,7 +346,7 @@ def plot_scatter(
 
 def plot_rof(*args, **kwargs):
     """Create a retention of function curve, or a rank-ordered scatter
-    plot.
+    plot. See `plot_scatter` for more details.
 
     Parameters:
     -----------
@@ -496,6 +503,11 @@ def plot_hm(
         outline_opts = {}
     # Get data and metadata
     df, locs, auto_value, case = _parse_data_obj(object)
+    if locs is None:
+        raise ValueError(
+            'DataFrame is missing well, row, and/or column information. '
+            'This is necessary for this visualization.'
+        )
     if value_name is not None:
         check_df_col(df, value_name, 'value_name')
     else:
@@ -634,8 +646,8 @@ def plot_hm(
 
 def plot_bar(
     object,
-    variable=None,
-    value_name=None,
+    variable,
+    value=None,
     split=None,
     color=None,
     sort=None,
@@ -655,9 +667,8 @@ def plot_bar(
     Parameters:
     -----------
     object: ns.Plate or pd.DataFrame object
-        Must contain a DataFrame with columns labeled well, row, column,
-        (case-insensitive) and the final column as the label (can be
-        overwritten, see `value_name` kwarg).
+        If DataFrame and `value = None`, the final column is used as the
+        value.
     variable: str
         Column in DataFrame representing the variable, plotted on
         the x-axis.
@@ -703,45 +714,44 @@ def plot_bar(
     """
     # Get data and metadata
     df, locs, auto_value, case = _parse_data_obj(object)
-    if value_name is not None:
-        check_df_col(df, value_name, 'value_name')
+    if value is not None:
+        check_df_col(df, value, 'value')
     else:
-        value_name = auto_value
+        value = auto_value
     
     # Check columns
     check_df_col(df, variable, 'variable')
     check_df_col(df, split, 'split')
     check_df_col(df, sort, 'sort')
 
+    # Auto-colomapping
+    if cmap == 'CategoryN':
+        if len(df[variable].unique()) <= 10:
+            cmap = 'Category10'
+        else:
+            cmap = 'Category20'
+
     if not isinstance(split, (list, tuple)):
         split = [split]
-    replicates, df = check_replicates(df, variable, value, split)
+    replicates, df = aggregate_replicates(df, variable, value, split)
 
     # Sort
     if sort is not None:
-        check_df_col(data, sort, name="sort")
+        check_df_col(df, sort, name='sort')
         df = df.sort_values(by=sort).reset_index(drop=True)
 
     # Encode color
     if color is None:
         color = variable
 
-    # Decide colormap
-    if cmap == 'default':
-        number = len(data[color].unique())
-        try:
-            cmap = getattr(bokeh.palettes, cmap)(number+3)[1:-1]
-        except:
-            cmap = getattr(bokeh.palettes, 'viridis')(number+3)[1:-1]
-
     # Pull out available encodings (column names)
-    encodings = [*list(data.columns)]
+    encodings = [*list(df.columns)]
 
     # Set options (this is probably horribly inefficient right now)
     base_opts = dict(
         height=height,
         width=width,
-        ylim=(0, 1.1*np.max(data[value])),
+        ylim=(0, 1.1*np.max(df[value])),
         xrotation=xrotation,
         color=color,
         cmap=cmap,
@@ -753,14 +763,14 @@ def plot_bar(
 
     # Make bar chart
     bars = hv.Bars(
-        data,
+        df,
         variable,
         [('mean_' + str(value), value), *encodings],
     ).opts(**bar_opts)
 
     # Determine single-point entries
     args = [elem for elem in [variable] + split if elem is not None]
-    counts = (data.groupby(args).count() ==
+    counts = (df.groupby(args).count() ==
                 1).reset_index()[[variable, value]]
     counts.columns = [variable, 'counts']
 
@@ -769,7 +779,7 @@ def plot_bar(
 
     # Make scatter chart
     points = hv.Scatter(
-        data[~data[variable].isin(singlets)],
+        df[~df[variable].isin(singlets)],
         variable,
         [value, *encodings],
     ).opts(**scat_opts)
@@ -779,13 +789,8 @@ def plot_bar(
         bars = bars.groupby(split).opts(**bar_opts)
         points = points.groupby(split).opts(**scat_opts)
 
-        # If split, show as side-by-side, or dropdown
-        if show_all is True:
-            bars = bars.layout()
-            points = points.layout()
-
     # Output chart as only bars, or bars and points
-    if show_points == 'default':
+    if show_points is None:
         if replicates:
             chart = bars * points
         else:
@@ -799,15 +804,15 @@ def plot_bar(
 
 
 def plot_curve(
-    self,
+    object,
     variable,
-    value,
+    value=None,
     condition=None,
     split=None,
     sort=None,
-    cmap=None,
+    # cmap=None,#'CategoryN',
     show_all=False,
-    show_points="default",
+    show_points=None,
     legend=False,
     height=350,
     width=500,
@@ -821,6 +826,9 @@ def plot_curve(
     
     Parameters:
     -----------
+    object: ns.Plate or pd.DataFrame object
+        If DataFrame and `value = None`, the final column is used as the
+        value.
     variable: str
         Column in DataFrame representing a timecourse-like variable,
         plotted on the x-axis.
@@ -868,12 +876,29 @@ def plot_curve(
     --------
     chart: the final Holoviews chart
     """
+    # Get data and metadata
+    df, locs, auto_value, case = _parse_data_obj(object)
+    if value is not None:
+        check_df_col(df, value, 'value')
+    else:
+        value = auto_value
+    
     # Check columns
-    check_df_col(self.data, variable, name="variable")
-    check_df_col(self.data, value, name="value")
-    check_df_col(self.data, condition, name="condition")
-    check_df_col(self.data, split, name="split")
-    check_df_col(self.data, sort, name="sort")
+    check_df_col(df, variable, name='variable')
+    check_df_col(df, condition, name='condition')
+    check_df_col(df, split, name='split')
+    check_df_col(df, sort, name='sort')
+
+    # Auto-colomapping
+    # if cmap == 'CategoryN':
+    #     if condition is None:
+    #         n_conditions = 1
+    #     else:
+    #         n_conditions = len(df[condition].unique())
+    #     if n_conditions <= 10:
+    #         cmap = 'Category10'
+    #     else:
+    #         cmap = 'Category20'
 
     # Check for replicates; aggregate df
     if not isinstance(condition, (list, tuple)):
@@ -883,10 +908,10 @@ def plot_curve(
     groups = [grouping for grouping in (*condition, *split) if grouping is not None]
     if groups == []:
         groups = None
-    replicates, data = check_replicates(self.data, variable, value, groups)
+    replicates, df = aggregate_replicates(df, variable, value, groups)
 
     # Pull out available encodings (column names)
-    encodings = [*list(data.columns)]
+    encodings = [*list(df.columns)]
 
     # Set options
     base_opts = dict(height=height, width=width, padding=0.1)
@@ -897,13 +922,22 @@ def plot_curve(
             additional_opts.update(dict(legend_position=legend))
 
     line_opts = base_opts
-    scat_opts = dict(size=6, fill_alpha=0.75, tools=["hover"])
+    scat_opts = dict(size=6, fill_alpha=0.75, tools=['hover'])
     scat_opts.update(base_opts)
 
     # Now, start to actually make the chart
-    points = hv.Scatter(data, variable, [value, *encodings]).opts(**scat_opts)
+    points = hv.Scatter(
+        df,
+        variable,
+        [value, *encodings]
+    ).opts(**scat_opts)
 
-    lines = hv.Curve(data, variable, [("Mean of " + str(value), value), *encodings]).opts(
+    lines = hv.Curve(
+        df,
+        variable,
+        [('mean_' + str(value), value),
+        *encodings]
+    ).opts(
         **line_opts
     )
 
@@ -912,12 +946,12 @@ def plot_curve(
         lines = lines.groupby(groups).opts(**line_opts)
 
     # Output chart as desired
-    if show_points == "default":
+    if show_points is None:
         if replicates is True:
             chart = lines * points
         else:
             chart = lines
-    elif show_points is True:
+    elif show_points:
         chart = lines * points
     else:
         chart = lines
@@ -951,7 +985,11 @@ def plot_curve(
                 chart = chart.options(**good_opts)
 
     # Assign color
-    if cmap is not None:
-        chart = chart.opts({"Scatter": {"color": cmap}, "Curve": {"color": cmap}})
+    ### TODO: FIX THIS AFTER UPDATE
+    # if cmap is not None:
+    #     chart = chart.opts({
+    #         'Scatter': {'cmap': cmap},
+    #         'Curve': {'color': cmap}
+    #     })
 
     return chart

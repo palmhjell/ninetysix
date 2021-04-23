@@ -127,11 +127,15 @@ def check_annotations(Plate, annotations):
 
     return annotation_type
 
+
 def check_df_col(df, column, name=None):
     """Checks for the presence of a column (or columns) in a tidy
     DataFrame with an informative error message. Passes silently,
     otherwise raises error.
     """
+    if column is None:
+        return
+    
     if name is None:
         error_message = f"The value '{column}' is not present in any of your data's columns."
     else:

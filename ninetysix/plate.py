@@ -211,7 +211,7 @@ class Plate():
         the location, annotation, and value attributes.
         """
         base_locs = ['well', 'row', 'column']
-        if self._set_case(key) in base_locs:
+        if self.case(key) in base_locs:
             raise ValueError(
                 'Cannot delete base locations (well, row, column).'
             )
@@ -723,7 +723,7 @@ class Plate():
                 split = zero.split('=')
                 if len(split) != 2:
                     raise ValueError(
-                        f"'zero' value specified incorrectly, must be of the form '[column_name]=[value_name]'."
+                        f"'zero' value specified incorrectly, must be of the form 'column_name=value_name'."
                     )
 
                 col, val = split
@@ -753,7 +753,7 @@ class Plate():
                 split = to.split('=')
                 if len(split) != 2:
                     raise ValueError(
-                        f"'to' value specified incorrectly, must be of the form '[column_name]=[value_name]'."
+                        f"'to' value specified incorrectly, must be of the form 'column_name=value_name'."
                     )
                 
                 col, val = split

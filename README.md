@@ -19,7 +19,7 @@ A `Plate` object contains three major groups to describe a well:
 
 `locations`, `annotations`, and `values`.
 
-The data is always arrayed in that order. The 'most important' (or perhaps 'most relevant') value is set as the right-most column in the data, which is automatically used in downstream processing and visualization unless explicitly overwritten, thus saving time needing to specify what data use during exploratory data analysis.
+The data is always arrayed in that order. The 'most important' (or perhaps 'most relevant') value is set as the right-most column in the data, which is automatically used in downstream processing and visualization unless explicitly overwritten, thus saving time needing to specify what data to use during exploratory data analysis.
 
 New columns are assumed to be generic annotations, but can be moved to locations or values as necessary via the `Plate.set_as_location()` and `Plate.set_as_values()` methods, respecively.
 
