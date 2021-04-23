@@ -583,6 +583,7 @@ def plot_hm(
     p = p.opts(**base_opts)
 
     # Add outlines
+    major = None
     if outline is not None:
         if exclude_major:
             major = df[outline].value_counts().index[0]
@@ -601,6 +602,8 @@ def plot_hm(
                 outline_cmap = 'Category20'
         
         if isinstance(outline_cmap, dict):
+            # Remove major from dictionary if it exists
+            outline_cmap.pop(major, None)
             df_outline[outline] = pd.Categorical(
                 df_outline[outline],
                 categories=outline_cmap.keys()
