@@ -221,6 +221,8 @@ class Plate():
                 attr_list.remove(key)
         self._standardize_df()
 
+    def __len__(self):
+        return len(self.df)
 
     def _repr_html_(self):
         """Sets HTML representation as DataFrame attribute"""
