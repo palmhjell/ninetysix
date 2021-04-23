@@ -104,7 +104,7 @@ def aggregate_replicates(df, variable, value, grouping):
     value: string
         Name of column of data frame for the dependent variable,
         indicating an experimental observation.
-    group: list of strings
+    grouping: list of strings
         Column name or list of column names that indicates how the
         data set should be split.
     
@@ -647,8 +647,8 @@ def plot_hm(
 def plot_bar(
     object,
     variable,
-    value=None,
-    split=None,
+    value_name=None,
+    groupby=None,
     color=None,
     sort=None,
     cmap='CategoryN',
@@ -672,10 +672,10 @@ def plot_bar(
     variable: str
         Column in DataFrame representing the variable, plotted on
         the x-axis.
-    value: str
+    value_name: str
         Column in DataFrame representing the quantitative value,
         plotted on the y-axis
-    split: str
+    groupby: str
         The names of one or more columns that further specify the
         way the data is grouped. Defaults to None.
     sort: str
@@ -714,14 +714,14 @@ def plot_bar(
     """
     # Get data and metadata
     df, locs, auto_value, case = _parse_data_obj(object)
-    if value is not None:
-        check_df_col(df, value, 'value')
+    if value_name is not None:
+        check_df_col(df, value_name, 'value_name')
     else:
-        value = auto_value
+        value_name = auto_value
     
     # Check columns
     check_df_col(df, variable, 'variable')
-    check_df_col(df, split, 'split')
+    check_df_col(df, groupby, 'groupby')
     check_df_col(df, color, 'color')
     check_df_col(df, sort, 'sort')
 
@@ -732,9 +732,9 @@ def plot_bar(
         else:
             cmap = 'Category20'
 
-    if not isinstance(split, (list, tuple)):
-        split = [split]
-    replicates, df = aggregate_replicates(df, variable, value, split)
+    if not isinstance(groupby, (list, tuple)):
+        groupby = [groupby]
+    replicates, df = aggregate_replicates(df, variable, value_name, groupby)
 
     # Sort
     if sort is not None:
@@ -746,37 +746,23 @@ def plot_bar(
         color = variable
 
     # If color is the value column, make it the mean
-    if color == value:
-        color = f'mean_{value}'
+    if color == value_name:
+        color = f'mean_{value_name}'
 
     # Pull out available encodings (column names)
     encodings = [*list(df.columns)]
-
-    # Set options (this is probably horribly inefficient right now)
-    base_opts = dict(
-        height=height,
-        width=width,
-        ylim=(0, 1.1*np.max(df[value])),
-        xrotation=xrotation,
-        color=color,
-        cmap=cmap,
-        show_legend=legend,
-    )
-
-    bar_opts = base_opts
-    scat_opts = dict(size=6, fill_alpha=0.2, color='black')
 
     # Make bar chart
     bars = hv.Bars(
         df,
         variable,
-        [(f'mean_{value}', value), *encodings],
-    ).opts(**bar_opts)
+        [(f'mean_{value_name}', value_name), *encodings],
+    )
 
     # Determine single-point entries
-    args = [elem for elem in [variable] + split if elem is not None]
+    args = [elem for elem in [variable] + groupby if elem is not None]
     counts = (df.groupby(args).count() ==
-                1).reset_index()[[variable, value]]
+                1).reset_index()[[variable, value_name]]
     counts.columns = [variable, 'counts']
 
     # Get list of singlets to drop from plotting df
@@ -786,13 +772,13 @@ def plot_bar(
     points = hv.Scatter(
         df[~df[variable].isin(singlets)],
         variable,
-        [value, *encodings],
-    ).opts(**scat_opts)
+        [value_name, *encodings],
+    )
 
     # Make the split
-    if split != [None]:
-        bars = bars.groupby(split).opts(**bar_opts)
-        points = points.groupby(split).opts(**scat_opts)
+    if groupby != [None]:
+        bars = bars.groupby(groupby)
+        points = points.groupby(groupby)
 
     # Output chart as only bars, or bars and points
     if show_points is None:
@@ -805,15 +791,35 @@ def plot_bar(
     else:
         chart = bars
 
+    # Set options (this is probably horribly inefficient right now)
+    base_opts = dict(
+        height=height,
+        width=width,
+        ylim=(0, 1.1*np.max(df[value_name])),
+        xrotation=xrotation,
+        color=color,
+        cmap=cmap,
+        show_legend=legend,
+    )
+
+    bar_opts = base_opts
+    scat_opts = dict(size=6, fill_alpha=0.2, color='black')
+
+    # Add to chart
+    chart.opts({
+        'Bars': bar_opts,
+        'Scatter': scat_opts,
+    })
+
     return chart
 
 
 def plot_curve(
     object,
     variable,
-    value=None,
+    value_name=None,
     condition=None,
-    split=None,
+    groupby=None,
     sort=None,
     # cmap=None,#'CategoryN',
     show_all=False,
@@ -826,7 +832,7 @@ def plot_curve(
     """Converts a tidy DataFrame containing timecourse-like data
     into a plot, taking care to show all the data. A line is
     computed as the average of each set of points (grouped by the
-    condition and split, if present), and the actual data points are 
+    condition and groupby, if present), and the actual data points are 
     overlaid on top.
     
     Parameters:
@@ -837,13 +843,13 @@ def plot_curve(
     variable: str
         Column in DataFrame representing a timecourse-like variable,
         plotted on the x-axis.
-    value: str
+    value_name: str
         Column in DataFrame representing the quantitative value,
         plotted on the y-axis.
     condition: str
         The names of one or more columns that specifies way the data
         is grouped for a single chart. Defaults to None.
-    split:  str
+    groupby:  str
         The names of one or more columns that further specify the
         way the data is grouped between different charts. Defaults
         to None.
@@ -854,7 +860,7 @@ def plot_curve(
     cmap: The colormap to use. Any Holoviews/Bokeh colormap is fine.
         Uses Holoviews default if None.
     show_all: bool
-        If split is not None, whether or not to use a drop-down or
+        If groupby is not None, whether or not to use a drop-down or
         to show all the plots (layout). Note that this can be pretty
         buggy from Holoview's layout system. There is usually a way
         to how all the info you want, in a nice way. Just play
@@ -867,7 +873,7 @@ def plot_curve(
     legend: str
         First controls whether or not the legend is shown, then its
         position. Defaults to False, though 'top' would be a good
-        option, or 'top_left' if using split.
+        option, or 'top_left' if using groupby.
     height: int
         The height of the chart.
     width: int
@@ -883,15 +889,15 @@ def plot_curve(
     """
     # Get data and metadata
     df, locs, auto_value, case = _parse_data_obj(object)
-    if value is not None:
-        check_df_col(df, value, 'value')
+    if value_name is not None:
+        check_df_col(df, value_name, 'value_name')
     else:
-        value = auto_value
+        value_name = auto_value
     
     # Check columns
     check_df_col(df, variable, name='variable')
     check_df_col(df, condition, name='condition')
-    check_df_col(df, split, name='split')
+    check_df_col(df, groupby, name='groupby')
     check_df_col(df, sort, name='sort')
 
     # Auto-colomapping
@@ -908,12 +914,13 @@ def plot_curve(
     # Check for replicates; aggregate df
     if not isinstance(condition, (list, tuple)):
         condition = [condition]
-    if not isinstance(split, (list, tuple)):
-        split = [split]
-    groups = [grouping for grouping in (*condition, *split) if grouping is not None]
+    if not isinstance(groupby, (list, tuple)):
+        groupby = [groupby]
+    groups = [grouping for grouping in (*condition, *groupby)
+              if grouping is not None]
     if groups == []:
         groups = None
-    replicates, df = aggregate_replicates(df, variable, value, groups)
+    replicates, df = aggregate_replicates(df, variable, value_name, groups)
 
     # Pull out available encodings (column names)
     encodings = [*list(df.columns)]
@@ -934,21 +941,19 @@ def plot_curve(
     points = hv.Scatter(
         df,
         variable,
-        [value, *encodings]
-    ).opts(**scat_opts)
+        [value_name, *encodings]
+    )
 
     lines = hv.Curve(
         df,
         variable,
-        [('mean_' + str(value), value),
+        [(f'mean_{value_name}', value_name),
         *encodings]
-    ).opts(
-        **line_opts
     )
 
     if groups is not None:
-        points = points.groupby(groups).opts(**scat_opts)
-        lines = lines.groupby(groups).opts(**line_opts)
+        points = points.groupby(groups)
+        lines = lines.groupby(groups)
 
     # Output chart as desired
     if show_points is None:
@@ -965,13 +970,18 @@ def plot_curve(
     if condition is not None:
         chart = chart.overlay(condition)
 
-    # Split among different charts
-    if split is not None:
+    # groupby among different charts
+    if groupby is not None:
 
-        # If split, show as side-by-side, or dropdown
+        # If groupby, show as side-by-side, or dropdown
         if show_all is True:
-            chart = chart.layout(split)
+            chart = chart.layout(groupby)
 
+    chart = chart.opts({
+        'Curve': line_opts,
+        'Scatter': scat_opts,
+    })
+    
     # Assign the additional options, as allowed
     if additional_opts != {}:
         try:
