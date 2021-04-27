@@ -244,10 +244,10 @@ def plot_scatter(
 
     if case('rank') not in df.columns:
         if groupby == [None]:
-            df[case('rank')] = df[value_name].rank(ascending=False)
+            df[case('rank')] = df[value_name].rank(ascending=False, method='first')
         else:
             grouped = df.groupby(groupby)[value_name]
-            df[case('rank')] = grouped.rank(ascending=False)
+            df[case('rank')] = grouped.rank(ascending=False, method='first')
     
     secondary_sort = []
     kdims = []
@@ -821,201 +821,169 @@ def plot_bar(
     return chart
 
 
-# def plot_curve(
-#     object,
-#     variable,
-#     value_name=None,
-#     condition=None,
-#     groupby=None,
-#     sort=None,
-#     # cmap=None,#'CategoryN',
-#     show_all=False,
-#     show_points=None,
-#     legend=False,
-#     height=350,
-#     width=500,
-#     additional_opts={},
-# ):
-#     """Converts a tidy DataFrame containing timecourse-like data
-#     into a plot, taking care to show all the data. A line is
-#     computed as the average of each set of points (grouped by the
-#     condition and groupby, if present), and the actual data points are 
-#     overlaid on top.
+def plot_curve(
+    object,
+    variable,
+    value_name=None,
+    condition=None,
+    groupby=None,
+    sort=None,
+    cmap='CategoryN',
+    show_all=False,
+    show_points=None,
+    legend=False,
+    height=350,
+    width=500,
+):
+    """Converts a tidy DataFrame containing timecourse-like data
+    into a plot, taking care to show all the data. A line is
+    computed as the average of each set of points (grouped by the
+    condition and groupby, if present), and the actual data points are 
+    overlaid on top.
     
-#     Parameters:
-#     -----------
-#     object: ns.Plate or pd.DataFrame object
-#         If DataFrame and `value = None`, the final column is used as the
-#         value.
-#     variable: str
-#         Column in DataFrame representing a timecourse-like variable,
-#         plotted on the x-axis.
-#     value_name: str
-#         Column in DataFrame representing the quantitative value,
-#         plotted on the y-axis.
-#     condition: str
-#         The names of one or more columns that specifies way the data
-#         is grouped for a single chart. Defaults to None.
-#     groupby:  str
-#         The names of one or more columns that further specify the
-#         way the data is grouped between different charts. Defaults
-#         to None.
-#     sort: str
-#         Which column is used to determine the sorting of the data.
-#         Defaults to None, and will sort by the condition column
-#         (alphabetical) if present, otherwise `variable`.
-#     cmap: The colormap to use. Any Holoviews/Bokeh colormap is fine.
-#         Uses Holoviews default if None.
-#     show_all: bool
-#         If groupby is not None, whether or not to use a drop-down or
-#         to show all the plots (layout). Note that this can be pretty
-#         buggy from Holoview's layout system. There is usually a way
-#         to how all the info you want, in a nice way. Just play
-#         around.
-#     show_points: bool
-#         Shows all the data points. I don't even know why this is an
-#         argument. Default will show points if there are multiple
-#         replicates. Unless you have a really good reason, don't
-#         change this.
-#     legend: str
-#         First controls whether or not the legend is shown, then its
-#         position. Defaults to False, though 'top' would be a good
-#         option, or 'top_left' if using groupby.
-#     height: int
-#         The height of the chart.
-#     width: int
-#         The width of the chart.
-#     additional_opts: dictionary
-#         A dictionary to pass additional Holoviews options to the
-#         chart. Flexible; will try all options and only use the
-#         ones that did not raise an exception. Not verbose.
+    Parameters:
+    -----------
+    object: ns.Plate or pd.DataFrame object
+        If DataFrame and `value = None`, the final column is used as the
+        value.
+    variable: str
+        Column in DataFrame representing a timecourse-like variable,
+        plotted on the x-axis.
+    value_name: str
+        Column in DataFrame representing the quantitative value,
+        plotted on the y-axis.
+    condition: str
+        The names of one or more columns that specifies way the data
+        is grouped for a single chart. Defaults to None.
+    groupby:  str
+        The names of one or more columns that further specify the
+        way the data is grouped between different charts. Defaults
+        to None.
+    cmap: The colormap to use. Any Holoviews/Bokeh colormap is fine.
+        Uses Holoviews default if None.
+    show_all: bool
+        If groupby is not None, whether or not to use a drop-down or
+        to show all the plots (layout). Note that this can be pretty
+        buggy from Holoview's layout system. There is usually a way
+        to how all the info you want, in a nice way. Just play
+        around.
+    show_points: bool
+        Shows all the data points. I don't even know why this is an
+        argument. Default will show points if there are multiple
+        replicates. Unless you have a really good reason, don't
+        change this.
+    legend: str
+        First controls whether or not the legend is shown, then its
+        position. Defaults to False, though 'top' would be a good
+        option, or 'top_left' if using groupby.
+    height: int
+        The height of the chart.
+    width: int
+        The width of the chart.
     
-#     Returns:
-#     --------
-#     chart: the final Holoviews chart
-#     """
-#     # Get data and metadata
-#     df, locs, auto_value, case = _parse_data_obj(object)
-#     if value_name is not None:
-#         check_df_col(df, value_name, 'value_name')
-#     else:
-#         value_name = auto_value
+    Returns:
+    --------
+    chart: the final Holoviews chart
+    """
+    # Get data and metadata
+    df, locs, auto_value, case = _parse_data_obj(object)
+    if value_name is not None:
+        check_df_col(df, value_name, 'value_name')
+    else:
+        value_name = auto_value
     
-#     # Check columns
-#     check_df_col(df, variable, name='variable')
-#     check_df_col(df, condition, name='condition')
-#     check_df_col(df, sort, name='sort')
+    # Check columns
+    check_df_col(df, variable, 'variable')
+    check_df_col(df, condition, 'condition')
 
-#     if not isinstance(groupby, (list, tuple)):
-#         groupby = [groupby]
-#     for group in groupby:
-#         check_df_col(df, group, 'groupby')
+    if not isinstance(groupby, (list, tuple)):
+        groupby = [groupby]
+    for group in groupby:
+        check_df_col(df, group, 'groupby')
 
-#     # Auto-colomapping
-#     # if cmap == 'CategoryN':
-#     #     if condition is None:
-#     #         n_conditions = 1
-#     #     else:
-#     #         n_conditions = len(df[condition].unique())
-#     #     if n_conditions <= 10:
-#     #         cmap = 'Category10'
-#     #     else:
-#     #         cmap = 'Category20'
-
-#     # Check for replicates; aggregate df
-#     if not isinstance(condition, (list, tuple)):
-#         condition = [condition]
-#     if not isinstance(groupby, (list, tuple)):
-#         groupby = [groupby]
-#     groups = [grouping for grouping in (*condition, *groupby)
-#               if grouping is not None]
-#     if groups == []:
-#         groups = None
-#     replicates, df = aggregate_replicates(df, variable, value_name, groups)
-
-#     # Pull out available encodings (column names)
-#     encodings = [*list(df.columns)]
-
-#     # Set options
-#     base_opts = dict(height=height, width=width, padding=0.1)
-
-#     if legend is not False:
-#         base_opts.update(dict(show_legend=True))
-#         if legend is not True:
-#             additional_opts.update(dict(legend_position=legend))
-
-#     line_opts = base_opts
-#     scat_opts = dict(size=6, fill_alpha=0.75, tools=['hover'])
-#     scat_opts.update(base_opts)
-
-#     # Now, start to actually make the chart
-#     points = hv.Scatter(
-#         df,
-#         variable,
-#         [value_name, *encodings]
-#     )
-
-#     lines = hv.Curve(
-#         df,
-#         variable,
-#         [(f'mean_{value_name}', value_name),
-#         *encodings]
-#     )
-
-#     if groups is not None:
-#         points = points.groupby(groups)
-#         lines = lines.groupby(groups)
-
-#     # Output chart as desired
-#     if show_points is None:
-#         if replicates is True:
-#             chart = lines * points
-#         else:
-#             chart = lines
-#     elif show_points:
-#         chart = lines * points
-#     else:
-#         chart = lines
-
-#     # Overlay each line plot
-#     if condition is not None:
-#         chart = chart.overlay(condition)
-
-#     # groupby among different charts
-#     if groupby is not None:
-
-#         # If groupby, show as side-by-side, or dropdown
-#         if show_all is True:
-#             chart = chart.layout(groupby)
-
-#     chart = chart.opts({
-#         'Curve': line_opts,
-#         'Scatter': scat_opts,
-#     })
+    # Auto-colomapping
+    if condition is None:
+        n_conditions = 1
+    else:
+        n_conditions = len(df[condition].unique())
+    if cmap == 'CategoryN':
+        if n_conditions <= 10:
+            cmap = 'Category10'
+        else:
+            cmap = 'Category20'
     
-#     # Assign the additional options, as allowed
-#     if additional_opts != {}:
-#         try:
-#             chart = chart.options(**additional_opts)
-#         except ValueError:
-#             good_opts = {}
-#             bad_opts = {}
+    groups = [elem for elem in (condition, *groupby) if elem is not None]
+    replicates, df = aggregate_replicates(df, variable, value_name, groups)
 
-#             for opt in additional_opts.keys():
-#                 try:
-#                     test = chart.options(additional_opts[opt])
-#                     good_opts[opt] = additional_opts[opt]
-#                 except ValueError:
-#                     bad_opts[opt] = additional_opts[opt]
+    if isinstance(cmap, dict) and condition is not None:
+        # Sorting in hv.Curve is, somehow always, alphabetical.
+        # So, generate hv.Cycle object that way.
+        line_color = hv.Cycle([cmap[k] for k in sorted(df[condition].unique())])
+    else:
+        line_color = hv.Palette(cmap, samples=n_conditions)
 
-#                 chart = chart.options(**good_opts)
+    # Pull out available encodings (column names)
+    encodings = [*list(df.columns)]
 
-#     # Assign color
-#     ### TODO: FIX THIS AFTER UPDATE
-#     # if cmap is not None:
-#     #     chart = chart.opts({
-#     #         'Scatter': {'cmap': cmap},
-#     #         'Curve': {'color': cmap}
-#     #     })
+    # Set options
+    base_opts = dict(
+        height=height,
+        width=width,
+        padding=0.1,
+        show_legend=legend,
+        color=condition,
+    )
 
-#     return chart
+    line_opts = base_opts
+    line_opts['color'] = line_color
+    scat_opts = dict(size=6, fill_alpha=0.75, tools=['hover'], cmap=cmap)
+    scat_opts.update(base_opts)
+
+    # Now, start to actually make the chart
+    points = hv.Scatter(
+        df,
+        variable,
+        [value_name, *encodings]
+    )
+
+    lines = hv.Curve(
+        df,
+        variable,
+        [(f'mean_{value_name}', value_name),
+        *encodings]
+    )
+
+    if groups:
+        points = points.groupby(groups)
+        lines = lines.groupby(groups)
+
+    # Output chart as desired
+    if show_points is None:
+        if replicates:
+            chart = lines*points
+        else:
+            chart = lines
+    elif show_points:
+        chart = lines*points
+    else:
+        chart = lines
+
+    # Overlay each line plot
+    if condition is not None:
+        chart = chart.overlay(condition)
+
+    chart = chart.opts({
+        'Curve': line_opts,
+        'Scatter': scat_opts,
+    }).opts(
+        legend_position='right',
+        toolbar='above',
+    )
+
+    # groupby among different charts
+    if groupby is not None:
+        # If groupby, show as side-by-side, or dropdown
+        if show_all:
+            chart = chart.layout(groupby)
+
+    return chart
