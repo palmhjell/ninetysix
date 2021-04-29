@@ -7,6 +7,7 @@ import pandas as pd
 
 import holoviews as hv
 hv.extension('bokeh')
+import bokeh.palettes
 
 from .util import check_df_col
 
@@ -918,6 +919,9 @@ def plot_curve(
     for group in groupby:
         check_df_col(df, group, 'groupby')
 
+    groups = [elem for elem in (condition, *groupby) if elem is not None]
+    replicates, df = aggregate_replicates(df, variable, value_name, groups)
+
     # Auto-colomapping
     if condition is None:
         n_conditions = 1
@@ -928,16 +932,22 @@ def plot_curve(
             cmap = 'Category10'
         else:
             cmap = 'Category20'
-    
-    groups = [elem for elem in (condition, *groupby) if elem is not None]
-    replicates, df = aggregate_replicates(df, variable, value_name, groups)
+
+    # Determine if colormap is discrete or continuous
+    cmap_len = max(bokeh.palettes.all_palettes[cmap].keys())
+    discrete_cmap = True if cmap_len < 256 else False
 
     if isinstance(cmap, dict) and condition is not None:
         # Sorting in hv.Curve is, somehow always, alphabetical.
         # So, generate hv.Cycle object that way.
-        line_color = hv.Cycle([cmap[k] for k in sorted(df[condition].unique())])
+        line_color = hv.Cycle(
+            [cmap[k] for k in sorted(df[condition].unique())]
+        )
     else:
-        line_color = hv.Palette(cmap, samples=n_conditions)
+        # Use Palette to nicely sample from continuous colormap
+        if not discrete_cmap:
+            cmap = hv.Palette(cmap, samples=n_conditions+2).values[1:-1]
+        line_color = hv.Cycle(cmap)
 
     # Pull out available encodings (column names)
     encodings = [*list(df.columns)]
