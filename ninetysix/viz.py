@@ -662,9 +662,10 @@ def plot_bar(
     color=None,
     sort=None,
     cmap='CategoryN',
-    show_points=None,
+    show_points=True,
     legend=False,
     xrotation=0,
+    jitter=0,
     height=350,
     width=300,
 ):
@@ -681,41 +682,45 @@ def plot_bar(
     variable: str
         Column in DataFrame representing the variable, plotted on
         the x-axis.
-    value_name: str
-        Column in DataFrame representing the quantitative value,
-        plotted on the y-axis
-    groupby: str
+    value_name: str, default None
+        Column in DataFrame/Plate representing the quantitative value,
+        plotted on the y-axis.
+    groupby: str, default None
         The names of one or more columns that further specify the
-        way the data is grouped. Defaults to None.
-    sort: str
+        way the data is grouped.
+    sort: str, default NNone.
         Which column is used to determine the sorting of the data.
         Defaults to None, and will sort by the condition column
         (alphabetical) if present, otherwise variable.
-    cmap: The colormap to use. Any Holoviews/Bokeh colormap is fine.
-        Uses Holoviews default if None.
-    show_all: bool
+    cmap: str, default 'CategoryN'
+        The colormap to use. Any Holoviews/Bokeh colormap is fine.
+        Defaults to Category10 or Category20 depending on number of
+        unique plot elements.
+    show_all: bool, default False
         If split is not None, whether or not to use a drop-down or
         to show all the plots (layout). Note that this can be pretty
         buggy from Holoview's layout system. There is usually a way
         to how all the info you want, in a nice way. Just play
         around.
-    show_points: bool
+    show_points: bool, default True
         Shows all the data points. I don't even know why this is an
         argument. Default will show points if there are multiple
         replicates. Unless you have a really good reason, don't
         change this.
-    legend: str
+    legend: bool/str, default False
         First controls whether or not the legend is shown, then its
-            position. Defaults to False, though 'top' would be a good
-            option, or 'top_left' if using split.
-    height: int
+        position. Defaults to False, though 'top' would be a good
+        option, or 'top_left' if using split.
+    xrotation: int, default 0
+        Rotation of the x-labels in degrees.
+    height: int, default 350
         The height of the chart.
-    width: int
+    width: int, default 300
         The width of the chart.
 
     Returns:
     --------
-    p: Holoviews chart
+    chart: Holoviews chart
     """
     # Get data and metadata
     df, locs, auto_value, case = _parse_data_obj(object)
@@ -747,6 +752,13 @@ def plot_bar(
     if sort is not None:
         check_df_col(df, sort, name='sort')
         df = df.sort_values(by=sort).reset_index(drop=True)
+    
+    # Check jitter value
+    if not isinstance(jitter, (float, int)) or isinstance(jitter, bool):
+        raise ValueError('Jitter must be an explicit numeric value.')
+    if jitter > 1:
+        # Paternalism (shout out to seaborn)
+        raise ValueError('No. Jitter > 1 is misleading.')
 
     # Encode color
     if color is None:
@@ -810,7 +822,12 @@ def plot_bar(
     )
 
     bar_opts = base_opts
-    scat_opts = dict(size=6, fill_alpha=0.2, color='black')
+    scat_opts = dict(
+        size=6,
+        fill_alpha=0.2,
+        color='black',
+        jitter=jitter,
+    )
 
     # Add to chart
     chart.opts({
