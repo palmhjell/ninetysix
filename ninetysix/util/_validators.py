@@ -3,7 +3,7 @@ import pandas as pd
 from ..parsers import well_regex, pad
 
 
-def check_inputs(Plate):
+def check_inputs(Plate, value_name):
     """Checks that all inputs are provided correctly.
 
     Returns True if all tests pass.
@@ -22,10 +22,10 @@ def check_inputs(Plate):
     elif isinstance(Plate.data, list):
         df = pd.DataFrame(
             data=Plate.data,
-            columns=['well', Plate.value_name]
+            columns=['well', value_name]
         )
 
-    well_cols = [col for col in df.columns if col.lower() == 'well']
+    well_cols = [col for col in df.columns if str(col).lower() == 'well']
     if 'well' not in [well.lower() for well in well_cols]:
         raise ValueError(
             f"No 'well' value found in your {message}s."
@@ -36,7 +36,7 @@ def check_inputs(Plate):
         )
 
     well_col = well_cols[0]
-    if (Plate.value_name is None) & (well_col == df.columns[-1]):
+    if (value_name is None) & (well_col == df.columns[-1]):
         raise ValueError(
             "Your final {message} is assumed to be your value {message},"
             "but found {message} related to well."
@@ -50,10 +50,10 @@ def check_inputs(Plate):
             f"Well values must be of type string, found: {set(bad_types)}"
         )
 
-    if ((Plate.value_name is not None) and
-        (Plate.value_name not in df.columns)):
+    if ((value_name is not None) and
+        (value_name not in df.columns)):
         raise ValueError(
-            f"'{Plate.value_name}' not present in your data, "\
+            f"'{value_name}' not present in your data, "\
             f"options are: {list(df.columns)}"
         )
 
