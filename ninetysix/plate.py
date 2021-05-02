@@ -458,10 +458,15 @@ class Plate():
         except AttributeError:
             return
         
+        # Update attributes
+        self._well = self._set_case(self._well)
         self.column_dict = {
             key: [self._set_case(val) for val in vals]
             for key, vals in zip(col_dict_keys, col_dict_vals)
         }
+        self._locations = self.column_dict['locations']
+        self._annotations = self.column_dict['annotations']
+        self._values = self.column_dict['values']
 
         return self.column_dict
 
@@ -530,7 +535,7 @@ class Plate():
             return
 
         # Same if plate lists have not been created
-        self._update_column_dict()
+        self.column_dict = self._update_column_dict()
         
         # Reset index in mi_df
         mi_df = self.mi_df.reset_index(col_level=1, col_fill='locations')
@@ -561,9 +566,11 @@ class Plate():
         self.df = _df.copy()
 
         # Update padding
+        self._well = self._set_case(self._well)
         self._wells = [pad(well, padded=self.zero_padding)
                            for well in self._wells]
         self.df[self._well] = self._wells
+        self.mi_df = self._init_mi_df()
 
 ###########################
 # Plate-specific methods
@@ -572,7 +579,9 @@ class Plate():
     def set_as_location(self, name, idx=-1):
         """Sets a column as a location"""
         check_df_col(self.df, name, 'name')
+        vals = self.df[name].values
         self._remove_column(name)
+        self.mi_df[('locations', name)] = vals
         
         if idx == -1:
             self.locations.append(name)
@@ -582,9 +591,9 @@ class Plate():
                 name,
                 *self.locations[idx:]
             ]
+        
         self._standardize_df()
 
-        return self
 
     def set_as_values(self, new_values=None, value_name=None):
         """Sets columns in the Plate DataFrame as values.
@@ -604,7 +613,11 @@ class Plate():
                 # Check that the column exists
                 for val in new_values:
                     check_df_col(self.df, val, 'value')
+
+                    # Place it in the plate
+                    vals = self.df[val].values
                     self._remove_column(val)
+                    self.mi_df[('values', val)] = vals
 
             # Add to self._values
             self.values += new_values
@@ -624,8 +637,6 @@ class Plate():
         self.values.append(self.value_name)
 
         self._standardize_df()
-
-        return self
         
 
     def annotate_wells(self, annotations):
