@@ -37,9 +37,8 @@ if pf is not None:
         # Add locations
         plate.locations = locations
 
-        # Add values, keeping value_name correct
-        for value in values[:-1]:
-            plate = plate.set_as_values(value, value_name=values[-1])
+        # Add values
+        plate.values = values
         
         return plate
 

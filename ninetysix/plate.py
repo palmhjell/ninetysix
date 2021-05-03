@@ -209,9 +209,11 @@ class Plate():
                 'Cannot delete base locations (well, row, column).'
             )
         del self.df[key]
-        for attr_list in (self.locations, self.annotations, self.values):
+        for attr in ('locations', 'annotations', 'values'):
+            attr_list = getattr(self, attr)
             if key in attr_list:
                 attr_list.remove(key)
+                del self.mi_df[(attr, key)]
 
     def __len__(self):
         return len(self.df)
@@ -291,9 +293,7 @@ class Plate():
             self.mi_df.index.name = self._well
             
             # Reset dataframe
-            self.df = self.mi_df.copy()
-            self.df = self.df.reset_index(col_level=1)
-            self.df.columns = self.df.columns.droplevel(0)
+            self.df = self._from_midf()
 
     def _set_case(self, string):
         """For actually setting the case."""
@@ -342,8 +342,31 @@ class Plate():
         return self._locations
 
     @locations.setter
-    def locations(self, locations):
+    def locations(self, locations):        
+        # Ensure base locations are still there, and well is first
+        base_locs = [self._well, self._row, self._col]
+        for base_loc in base_locs:
+            if base_loc not in locations:
+                if base_loc == self._well:
+                    locations = [self._well, *locations]
+                else:
+                    locations.append(base_loc)
+        
         self._locations = locations
+        
+        # Remove if found in annotations
+        ann_check = set(self.locations) & set(self.annotations)
+        if ann_check:
+            self._annotations = [ann for ann in self._annotations
+                                 if ann not in ann_check]
+        
+        # Same for values
+        val_check = set(self.locations) & set(self.values)
+        if val_check:
+            self._values = [val for val in self._values
+                            if val not in val_check]
+        
+        # Reset column_dict to rearrange dataframe
         self.column_dict = {
             'locations': self.locations,
             'annotations': self.annotations,
@@ -358,6 +381,20 @@ class Plate():
     @annotations.setter
     def annotations(self, annotations):
         self._annotations = annotations
+        
+        # Remove if found in locations
+        loc_check = set(self.annotations) & set(self.locations)
+        if loc_check:
+            self._locations = [loc for loc in self._locations
+                                 if loc not in loc_check]
+        
+        # Same for values
+        val_check = set(self.annotations) & set(self.values)
+        if val_check:
+            self._values = [val for val in self._values
+                            if val not in val_check]
+        
+        # Reset column dict to rearrange dataframe
         self.column_dict = {
             'locations': self.locations,
             'annotations': self.annotations,
@@ -371,8 +408,28 @@ class Plate():
 
     @values.setter
     def values(self, values):
+        # Check that there is at least one value
+        if not values:
+            raise ValueError(
+               'Plate must contain at least one value.' 
+            )
+        
         self._values = values
         self.value_name = values[-1]
+        
+        # Remove if found in locations
+        loc_check = set(self.values) & set(self.locations)
+        if loc_check:
+            self._locotations = [loc for loc in self._locotations
+                                 if loc not in loc_check]
+        
+        # Same for annotations
+        ann_check = set(self.values) & set(self.annotations)
+        if ann_check:
+            self._annotations = [ann for ann in self._annotations
+                                 if ann not in ann_check]
+        
+        # Reset column dict to rearrange dataframe
         self.column_dict = {
             'locations': self.locations,
             'annotations': self.annotations,
@@ -385,49 +442,66 @@ class Plate():
 
     @column_dict.setter
     def column_dict(self, column_dict):
-        if self._column_dict != column_dict:
-            old_dict = self._column_dict
-        else:
-            old_dict = False
         self._column_dict = column_dict
 
+        # Confirm values list still has members
+        if not column_dict['values']:
+            # If not, reset it and raise error
+            old_values = list(self.mi_df.xs('values', axis=1).columns)
+            column_dict['values'] = old_values
+            for attr_list in (self.locations, self.annotations):
+                for val in old_values:
+                    if val in attr_list:
+                        attr_list.remove(val)
+            raise ValueError(
+                'Plate must contain at least one value.'
+            )
+        # Ensure base locations are still there
+        locs = column_dict['locations']
+        base_locs = [self._well, self._row, self._col]
+        for base_loc in base_locs:
+            if base_loc not in locs:
+                if base_loc == self._well:
+                    locs = [self._well, *locs]
+                else:
+                    locs.append(base_loc)
+        
+        column_dict['locations'] = locs
+
         # Re-arrange DataFrame
-        if old_dict:
-            
-            # Get current multi-index df dict
-            mi_df = self.mi_df.reset_index(col_level=1, col_fill='locations')
-            mi_dict = mi_df.to_dict()
-            
-            # Re-arrange columns
-            new_dict = {}
-            for key1, value in self._column_dict.items():
-                for key2 in value:
+        # Get current multi-index df dict
+        mi_df = self.mi_df.reset_index(col_level=1, col_fill='locations')
+        mi_dict = mi_df.to_dict()
+        
+        # Re-arrange columns
+        new_dict = {}
+        # Iterate through key pairs
+        for key1, value in column_dict.items():
+            for key2 in value:
+                try:
+                    # Grab data from same key pair
                     series = mi_dict[(key1, key2)]
-                    new_dict[(key1, key2)] = series
-            
-            # Assign as new mi_df
-            index = ('locations', self._well)
-            self.mi_df = pd.DataFrame(new_dict).set_index(index)
-            self.mi_df.index.name = self._well
+                except KeyError:
+                    # If attribute key has changed, grab data from df
+                    series = self.df[key2]
+                # Store in dictionary
+                new_dict[(key1, key2)] = series
+        
+        # Assign as new mi_df
+        index = ('locations', self._well)
+        self.mi_df = pd.DataFrame(new_dict).set_index(index)
+        self.mi_df.index.name = self._well
 
-            # Reset dataframe
-            self.df = self.mi_df.copy()
-            self.df = self.df.reset_index(col_level=1)
-            self.df.columns = self.df.columns.droplevel(0)
-
-
+        # Reset dataframe
+        self.df = self._from_midf()
 
 # Helper methods
-    def _remove_column(self, column):
-        for attr_list in (self.locations, self.annotations, self.values):
-            if column in attr_list:
-                attr_list.remove(column)
-
-        self.column_dict = {
-            'locations': self.locations,
-            'annotations': self.annotations,
-            'values': self.values,
-        }
+    def _from_midf(self):
+        """Create df from mi df"""
+        self.df = self.mi_df.copy() 
+        self.df = self.df.reset_index(col_level=1)
+        self.df.columns = self.df.columns.droplevel(0)
+        return self.df
 
 ###########################
 # DataFrame construction
@@ -549,24 +623,29 @@ class Plate():
 # Plate methods
 ###########################
 
-    def set_as_location(self, name, idx=-1):
+    def set_as_location(self, loc, idx=-1):
         """Sets a column as a location"""
-        check_df_col(self.df, name, 'name')
-        vals = self.df[name].values
-        self._remove_column(name)
-        self.mi_df[('locations', name)] = vals
+        # Check column
+        check_df_col(self.df, loc, 'location')
+
+        # Allow idx arg to rearrange instead of fail by removing loc if present
+        if loc in self.locations:
+            self.locations.remove(loc)
+
+        # Set up new locations attribute
+        locs = self._locations
         
         if idx == -1:
-            self.locations.append(name)
+            locs.append(loc)
         else:
             idx += 1
-            self.locations = [
-                *self.locations[:idx],
-                name,
-                *self.locations[idx:]
+            locs = [
+                *locs[:idx],
+                loc,
+                *locs[idx:]
             ]
 
-        print(self.locations)
+        self.locations = locs
 
         return self
 
@@ -580,36 +659,31 @@ class Plate():
         value_name: str
             Which value should be set as the main (-1 index) value.
         """
+        if set(self.values) & set(new_values):
+            raise ValueError(
+                'Cannot set current values as new values.'
+            )
         # Set as list
         if new_values is not None:
             if not isinstance(new_values, list):
                 new_values = [new_values]
-
-                # Check that the column exists
-                for val in new_values:
-                    check_df_col(self.df, val, 'value')
-
-                    # Place it in the plate
-                    vals = self.df[val].values
-                    self._remove_column(val)
-                    self.mi_df[('values', val)] = vals
-
-            # Add to self._values
-            self.values += new_values
+                values = new_values + self.values
 
         # Update self.value_name
         if value_name is not None:
-            check_df_col(self.df, value_name, 'value_name')
-            self.value_name = value_name
+            values.remove(value_name)
+            values.append(value_name)
+        else:
+            value_name = values[-1]
 
         # Move main value to end of vals list
-        if self.value_name not in self.values:
+        if value_name not in [*self.values, *values]:
             raise ValueError(
                 f"'{value_name}' not found in list of values. Pick one of "\
                 f"{self.values} or pass new_values='{value_name}'."
             )
-        self.values.remove(self.value_name)
-        self.values.append(self.value_name)
+        
+        self.values = values
 
         return self
         
@@ -864,10 +938,6 @@ class Plate():
 
                 sub_df[norm_string] = sub_df[norm_string] / one_val
 
-                # Update self._values list
-                if norm_string not in self._values:
-                    self._values.insert(-2, norm_string)
-
                 # Store in df_list
                 df_list.append(sub_df)
 
@@ -878,7 +948,12 @@ class Plate():
                 pd.concat(df_list), on=mergers
             )
             
-            self.mi_df[('values', norm_string)] = _df[norm_string]
+            self.mi_df[('values', norm_string)] = _df[norm_string].values
+            self.df = self._from_midf()
+
+            # Update self.values list
+            if norm_string not in self.values:
+                self.values = [*self.values[:-2], norm_string, self.value_name]
         
         # Clean up
         if update_value:
@@ -888,8 +963,8 @@ class Plate():
                 update_string = norm_string
             
             self.value_name = update_string
-            self._values.remove(update_string)
-            self._values.append(update_string)
+            self.values.remove(update_string)
+            self.values = [*self.values, update_string]
 
         return self
   
