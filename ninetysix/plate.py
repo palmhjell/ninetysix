@@ -334,6 +334,14 @@ class Plate():
     @value_name.setter
     def value_name(self, value_name):
         self._value_name = value_name
+        # Rearrange data
+        values = self._values
+        try:
+            values.remove(value_name)
+        except ValueError:
+            pass
+        values.append(value_name)
+        self.values = values
 
 ### Primary descriptors
     @property
@@ -415,7 +423,7 @@ class Plate():
             )
         
         self._values = values
-        self.value_name = values[-1]
+        self._value_name = values[-1]
         
         # Remove if found in locations
         loc_check = set(self.values) & set(self.locations)
