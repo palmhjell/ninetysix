@@ -1,4 +1,36 @@
+"""
+Tools for parsing and regularizing data found in Plate objects.
+"""
+
 from itertools import product
+
+
+def _infer_casing(string):
+    """Guesses the case of a string."""
+    # Acceptable cases
+    cases = ['lower', 'title', 'capitalize', 'upper']
+
+    found_cases = [case for case in cases
+                   if getattr(str, case)(string) == string]
+
+    return found_cases
+
+def _infer_padding(well):
+    """Guesses if a well is padded (A01) or not (A1). Returns False
+    if it cannot be guessed (on double-digit column).
+    """
+    # Assume False
+    padded = False
+
+    row = well[0]
+    str_col = well[1:]
+    int_col = str(int(str_col))
+
+    # Return True is str form != int form
+    if len(str_col) != len(int_col):
+        padded = True
+
+    return padded
 
 def pad(well, padded=True):
     """Converts to or from zero-padded column names
@@ -19,23 +51,6 @@ def pad(well, padded=True):
     well = row+col
     
     return well
-
-def _infer_padding(well):
-    """Guesses if a well is padded (A01) or not (A1). Returns False
-    if it cannot be guessed (on double-digit column).
-    """
-    # Assume False
-    padded = False
-
-    row = well[0]
-    str_col = well[1:]
-    int_col = str(int(str_col))
-
-    # Return True is str form != int form
-    if len(str_col) != len(int_col):
-        padded = True
-
-    return padded
 
 def well_regex(input_dict, padded=None):
     """Parses simple regex-like syntax for well keys in a
