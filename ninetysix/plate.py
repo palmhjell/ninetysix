@@ -236,7 +236,9 @@ class Plate():
 
     @data.setter
     def data(self, data):
-        if isinstance(data, zip):
+        # Possible well-value pair types
+        wv_pair_types = (zip, list, tuple, np.ndarray)
+        if isinstance(data, wv_pair_types):
             data = pd.DataFrame(
                 list(data),
                 columns=['well', None]
@@ -419,16 +421,15 @@ class Plate():
         # Check that there is at least one value
         if not values:
             raise ValueError(
-               'Plate must contain at least one value.' 
+               'Plate must contain at least one value.'
             )
         
         self._values = values
-        self._value_name = values[-1]
         
         # Remove if found in locations
         loc_check = set(self.values) & set(self.locations)
         if loc_check:
-            self._locotations = [loc for loc in self._locotations
+            self._locations = [loc for loc in self._locations
                                  if loc not in loc_check]
         
         # Same for annotations
@@ -443,6 +444,9 @@ class Plate():
             'annotations': self.annotations,
             'values': self.values,
         }
+
+        # Update value name
+        self._value_name = self.values[-1]
 
     @property
     def column_dict(self):
@@ -812,7 +816,8 @@ class Plate():
         """Normalizes the value column to give the max a value of 1,
         returning a new column named '[prefix][value]', e.g.,
         'normalized_value. Accepts different value kwargs and can
-        explicitly scale from 0 to 1 'zero=True'. Alternatively, scales relative to a specific assignment of a condition column, i.e. to 'Standard' within the condition 'Controls' can be set to a value
+        explicitly scale from 0 to 1 'zero=True'. Alternatively, scales
+        relative to a specific assignment of a condition column, i.e. to 'Standard' within the condition 'Controls' can be set to a value
         of 1 via the kwarg `to='Controls=Standard'`. Additionally can
         assign a lower 0 value in the same way.
 
@@ -823,7 +828,8 @@ class Plate():
         to: str, default None
             Which group to set as the normal (1) value. If None, the max
             value for each column in `value` is set to 1 and all other
-            values are scaled to this. If a condition is passed, e.g., `to='Controls=Standard'`, the mean of the wells labeled
+            values are scaled to this. If a condition is passed, e.g.,
+            `to='Controls=Standard'`, the mean of the wells labeled
             'Standard' in the column 'Controls' will be set to 1 for
             each value column.
         zero: str or bool, default None
@@ -949,19 +955,19 @@ class Plate():
                 # Store in df_list
                 df_list.append(sub_df)
 
-            # Add new column in correct order
-            mergers = [self._well,
-                       *[elem for elem in groupby if elem is not None]]
-            _df = self.df[mergers].merge(
-                pd.concat(df_list), on=mergers
-            )
-            
-            self.mi_df[('values', norm_string)] = _df[norm_string].values
-            self.df = self._from_midf()
+        # Add new column in correct order
+        mergers = [self._well,
+                    *[elem for elem in groupby if elem is not None]]
+        _df = self.df[mergers].merge(
+            pd.concat(df_list), on=mergers
+        )
+        
+        self.mi_df[('values', norm_string)] = _df[norm_string].values
+        self.df = self._from_midf()
 
-            # Update self.values list
-            if norm_string not in self.values:
-                self.values = [*self.values[:-2], norm_string, self.value_name]
+        # Update self.values list
+        if norm_string not in self.values:
+            self.values = [*self.values[:-2], norm_string, self.value_name]
         
         # Clean up
         if update_value:

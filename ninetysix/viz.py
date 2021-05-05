@@ -558,6 +558,7 @@ def plot_hm(
         color_levels=color_levels,
         invert_yaxis=True,
         tools=['hover'],
+        line_width=2,
         **hm_opts,
     )
 
@@ -664,6 +665,8 @@ def plot_bar(
     sort=None,
     cmap='CategoryN',
     show_points=True,
+    layout=False,
+    n_cols=2,
     legend=False,
     xrotation=0,
     jitter=0,
@@ -697,17 +700,16 @@ def plot_bar(
         The colormap to use. Any Holoviews/Bokeh colormap is fine.
         Defaults to Category10 or Category20 depending on number of
         unique plot elements.
-    show_all: bool, default False
-        If split is not None, whether or not to use a drop-down or
-        to show all the plots (layout). Note that this can be pretty
-        buggy from Holoview's layout system. There is usually a way
-        to how all the info you want, in a nice way. Just play
-        around.
     show_points: bool, default True
         Shows all the data points. I don't even know why this is an
         argument. Default will show points if there are multiple
         replicates. Unless you have a really good reason, don't
         change this.
+    layout: bool, default False
+        Whether or not to lay out all of the data (True) or keep it as
+        a slider-based panel (False), if `groupby` was not None.
+    n_cols: int, default 2
+        Number of columns of laid-out plots if `layout` is True.
     legend: bool/str, default False
         First controls whether or not the legend is shown, then its
         position. Defaults to False, though 'top' would be a good
@@ -835,6 +837,9 @@ def plot_bar(
         'Bars': bar_opts,
         'Scatter': scat_opts,
     })
+
+    if layout and groupby != [None]:
+        chart = chart.layout().cols(n_cols)
 
     return chart
 

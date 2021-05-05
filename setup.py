@@ -24,7 +24,7 @@ setup(
     author_email=__email__,
     description='A general package for tidying, annotating, and analyzing 96-well plate data.',
     long_description=long_description,
-    long_description_content_type='ext/markdown',
+    long_description_content_type='text/markdown',
     packages=find_packages(),
     install_requires=[
         'numpy',
