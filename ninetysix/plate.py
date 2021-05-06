@@ -888,7 +888,9 @@ class Plate():
         df_list = []
         # Iterate through each dataframe
         for name, sub_df in unique_dfs:
-
+            
+            sub_df = sub_df.copy()
+            
             # Iterate through each value
             for value in values:
                 check_df_col(sub_df, value, name='value')
