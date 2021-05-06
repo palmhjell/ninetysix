@@ -1,4 +1,4 @@
-<img src="_assets/ninetysix_1.png" alt="logo" width="250"/>
+<img src="docs/assets/ninetysix_1.png" alt="logo" width="250"/>
 
 # ninetysix
 A general package for annotating, processing, and visualizing 96-well* plate data.
@@ -97,37 +97,37 @@ These plots are based on the `holoviews` (http://holoviews.org/) package with th
 
 Plotting functions are available directly as `Plate` methods for an efficient workflow:
 
-<img src="_assets/full_workup.png" alt="ex0" width="600"/>
+<img src="docs/assets/full_workup.png" alt="ex0" width="600"/>
 
 ### Examples
 #### Constructing a `Plate` object.
-<img src="_assets/example_plate.png" alt="ex1" width="350"/>
+<img src="docs/assets/example_plate.png" alt="ex1" width="350"/>
 
 Construction of a `Plate` automatically adds 'row' and 'column' information, if not already present.
 
 #### Annotation is of wells is streamlined via nested dictionaries and `well_regex`.
-<img src="_assets/annotate.png" alt="ex2" width="400"/> 
+<img src="docs/assets/annotate.png" alt="ex2" width="400"/> 
 
 Each outer key is the name of the new data column, while the inner key-value pairs are the wells and their annotations for that new column. Simple regex is supported for well keys, and all unspecified wells can be annotated via the keys 'default', 'else', 'other', or 'standard' (otherwise will be labeled as `None`).
 
 #### Using the annotations to further process the data.
-<img src="_assets/simple_normalize.png" alt="ex3" width="500"/>
+<img src="docs/assets/simple_normalize.png" alt="ex3" width="500"/>
 
 The `normalize()` method allows you to rescale your data. Given no arguments, it will just scale the data in your value column to max out at 1. Given `zero=True`, it will translate and scale your data to be exactly between zero and one.
 
 Additional arguments allow you to specify groups to set to 1. For example, `normalize(to='controls=standard')` says take the group `standard` in the annotation column `controls` and set the mean to 1, and rescale everything else accordingly. `zero` also takes a string argument similar to the `to` kwarg to set a group's mean value to zero:
 
-<img src="_assets/normalize.png" alt="ex4" width="530"/>
+<img src="docs/assets/normalize.png" alt="ex4" width="530"/>
 
 #### Visualizing the data.
-<img src="_assets/simple_scatter.png" alt="ex5" width="450"/>
+<img src="docs/assets/simple_scatter.png" alt="ex5" width="450"/>
 
 Plotting functions are available as `Plate` methods or as functions from `ns.viz`, which take `Plate` or plate-like `DataFrame` objects and return visualizations. They default to using `value_name` (the right-most column in the `Plate` or `DataFrame`) on the y-axis, but this can be overwritten with the `value_name` kwarg in the mmethod/function.
 
-<img src="_assets/cmap_plot.png" alt="ex6" width="500"/>
+<img src="docs/assets/cmap_plot.png" alt="ex6" width="500"/>
 
 Finally, we can make a heatmap of the plate, with the control wells highlighted (excluding the major/most prevalent group to reduce clutter, which in this case would just be the 'experiment' wells.).
-<img src="_assets/hm.png" alt="ex7" width="800"/>
+<img src="docs/assets/hm.png" alt="ex7" width="800"/>
 
 #### Multi-`Plate` objects and `groupby` operations.
 *(Note: in the future this will be available via the `Plates` class, but this is not yet implemented.)*
@@ -136,6 +136,6 @@ Plotting functions and the `Plate.normalize()` method take `groupby` arguments, 
 
 This can be seen in the `ns_examples.ipynb` notebook, and results in data/visualizations like these:
 
-<img src="_assets/groupby_norm_plot.png" alt="ex8" width="800"/>
+<img src="docs/assets/groupby_norm_plot.png" alt="ex8" width="800"/>
 
-<img src="_assets/grouped_plot_bar.png" alt="ex9" width="800"/>
+<img src="docs/assets/grouped_plot_bar.png" alt="ex9" width="800"/>
