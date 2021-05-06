@@ -18,7 +18,10 @@ do
     # Rerun notebook
     jupyter nbconvert --to notebook --execute --clear-output --inplace $nb
 
-    # Convert to html
-    jupyter nbconvert $nb --to html --output $new_path
+    # Touch new html doc with jekyll front matter
+    echo -e "---\nlayout: default\n---\n" > $new_path
+
+    # Convert to html and add to html file
+    jupyter nbconvert $nb --to html --stdout >> $new_path
 
 done
