@@ -24,4 +24,9 @@ do
     # Convert to html and add to html file
     jupyter nbconvert $nb --to html --stdout >> $new_path
 
+    # Update the relative path links to assets directory
+    sed -i '' -e 's&../docs/assets/&assets/&g' $new_path
+    
+
+
 done
