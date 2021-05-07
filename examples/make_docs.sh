@@ -26,7 +26,10 @@ do
 
     # Update the relative path links to assets directory
     sed -i '' -e 's&../docs/assets/&assets/&g' $new_path
-    
-
 
 done
+
+# Add favicon to head of index file
+fav='<link rel="icon" href="favicon.ico" type="image/x-icon">'
+index='../docs/index.html'
+awk -v var="$fav" '/<head>/ { print; print var; next }1' $index > tmp && mv tmp $index
