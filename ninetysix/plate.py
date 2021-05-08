@@ -643,15 +643,17 @@ class Plate():
 
     def set_as_location(self, loc, idx=-1):
         """Sets a column as a location"""
+        plate = self.copy()
+
         # Check column
-        check_df_col(self.df, loc, 'location')
+        check_df_col(plate.df, loc, 'location')
 
         # Allow idx arg to rearrange instead of fail by removing loc if present
-        if loc in self.locations:
-            self.locations.remove(loc)
+        if loc in plate.locations:
+            plate.locations.remove(loc)
 
         # Set up new locations attribute
-        locs = self._locations
+        locs = plate._locations
         
         if idx == -1:
             locs.append(loc)
@@ -663,9 +665,9 @@ class Plate():
                 *locs[idx:]
             ]
 
-        self.locations = locs
+        plate.locations = locs
 
-        return self
+        return plate
 
     def set_as_value(self, new_values=None, value_name=None):
         """Sets columns in the Plate DataFrame as values.
@@ -677,7 +679,9 @@ class Plate():
         value_name: str
             Which value should be set as the main (-1 index) value.
         """
-        if set(self.values) & set(new_values):
+        plate = self.copy()
+
+        if set(plate.values) & set(new_values):
             raise ValueError(
                 'Cannot set current values as new values.'
             )
@@ -685,9 +689,9 @@ class Plate():
         if new_values is not None:
             if not isinstance(new_values, list):
                 new_values = [new_values]
-                values = new_values + self.values
+                values = new_values + plate.values
 
-        # Update self.value_name
+        # Update plate.value_name
         if value_name is not None:
             values.remove(value_name)
             values.append(value_name)
@@ -695,15 +699,15 @@ class Plate():
             value_name = values[-1]
 
         # Move main value to end of vals list
-        if value_name not in [*self.values, *values]:
+        if value_name not in [*plate.values, *values]:
             raise ValueError(
                 f"'{value_name}' not found in list of values. Pick one of "\
-                f"{self.values} or pass new_values='{value_name}'."
+                f"{plate.values} or pass new_values='{value_name}'."
             )
       
-        self.values = values
+        plate.values = values
 
-        return self
+        return plate
       
     def annotate_wells(self, annotations):
         """Takes either a nested dictionary or standardized excel

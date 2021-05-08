@@ -10,7 +10,7 @@ A general package for annotating, processing, and visualizing 96-well* plate dat
 
 This primarily works via the `Plate` class, but visualization tools are available for `pandas DataFrame` objects as well through `ninetysix.viz`.
 
-Visit the [`ninetysix` GitHub Pages site](https://palmhjell.github.io/ninetysix/index.html) for detailed and interactive examples.
+Visit the [`ninetysix` GitHub Pages site](https://palmhjell.github.io/ninetysix/) for detailed and interactive examples.
 
 ## Install
 ```
