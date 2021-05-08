@@ -121,9 +121,9 @@ class Plate():
         self,
         data=None,
         value_name=None,
-        annotate=None,
-        zero_padding=None,
         case=None,
+        zero_padding=None,
+        annotate=None,
         # fill_plate=False,
         # n_wells=96,
         pandas_attrs=True,
@@ -148,6 +148,14 @@ class Plate():
         # Get information and regularize the dataframe
         self.df, self._well, self._row, self._col = self._generate_df()
 
+        # Try to add pandas_attrs
+        self._pandas_attrs = pandas_attrs
+        if self._pandas_attrs:
+            try:
+                _set_pandas_attrs(self)
+            except ImportError:
+                self._pandas_attrs = 'Failed due to import error'
+
         # Add high-level attributes
         self._locations = [self._well, self._row, self._col]
         self._annotations = [
@@ -167,19 +175,12 @@ class Plate():
         self.mi_df = self._generate_mi_df()
         self.zero_padding = zero_padding
         self.case = case
-        # self._standardize_df()
 
         # Annotate
         if annotate is not None:
-            self = self.annotate_wells(annotate)
-
-        # Try to add pandas_attrs
-        self._pandas_attrs = pandas_attrs
-        if self._pandas_attrs:
-            try:
-                _set_pandas_attrs(self)
-            except ImportError:
-                self._pandas_attrs = 'Failed due to import error'
+            # Cannot reassign self in init, so need to be clever
+            self.mi_df = self.annotate_wells(annotate).mi_df
+            self.column_dict = self.annotate_wells(annotate).column_dict
 
         # Set plotting attributes directly as methods
         _set_viz_attrs(self)
@@ -322,8 +323,9 @@ class Plate():
 
             if padded:
                 self._zero_padding = True
-        
-        self.df[self._well] = wells.apply(pad, padded=self.zero_padding)
+
+        self.mi_df.index = wells.apply(pad, padded=self.zero_padding)
+        self.df = self._from_midf()
 
 ### Value name
     @property
@@ -477,14 +479,14 @@ class Plate():
                     locs = [self._well, *locs]
                 else:
                     locs.append(base_loc)
-        
+      
         column_dict['locations'] = locs
 
         # Re-arrange DataFrame
         # Get current multi-index df dict
         mi_df = self.mi_df.reset_index(col_level=1, col_fill='locations')
         mi_dict = mi_df.to_dict()
-        
+       
         # Re-arrange columns
         new_dict = {}
         # Iterate through key pairs
@@ -498,7 +500,7 @@ class Plate():
                     series = self.df[key2]
                 # Store in dictionary
                 new_dict[(key1, key2)] = series
-        
+     
         # Assign as new mi_df
         index = ('locations', self._well)
         self.mi_df = pd.DataFrame(new_dict).set_index(index)
@@ -507,13 +509,10 @@ class Plate():
         # Reset dataframe
         self.df = self._from_midf()
 
-# Helper methods
-    def _from_midf(self):
-        """Create df from mi df"""
-        self.df = self.mi_df.copy() 
-        self.df = self.df.reset_index(col_level=1)
-        self.df.columns = self.df.columns.droplevel(0)
-        return self.df
+        # Set each grouping
+        self._locations = self.column_dict['locations']
+        self._annotations = self.column_dict['annotations']
+        self._values = self.column_dict['values']
 
 ###########################
 # DataFrame construction
@@ -631,6 +630,13 @@ class Plate():
 
         return mi_df
 
+    def _from_midf(self):
+        """Create df from mi df"""
+        self.df = self.mi_df.copy()
+        self.df = self.df.reset_index(col_level=1)
+        self.df.columns = self.df.columns.droplevel(0)
+        return self.df
+
 ###########################
 # Plate methods
 ###########################
@@ -661,7 +667,7 @@ class Plate():
 
         return self
 
-    def set_as_values(self, new_values=None, value_name=None):
+    def set_as_value(self, new_values=None, value_name=None):
         """Sets columns in the Plate DataFrame as values.
         
         Parameters:
@@ -694,15 +700,15 @@ class Plate():
                 f"'{value_name}' not found in list of values. Pick one of "\
                 f"{self.values} or pass new_values='{value_name}'."
             )
-        
+      
         self.values = values
 
         return self
-        
+      
     def annotate_wells(self, annotations):
         """Takes either a nested dictionary or standardized excel
         spreadsheet (see ninetysix/templates) to assign new columns
-        in the output DataFrame that provide additional information 
+        in the output DataFrame that provide additional information
         about the contents or conditions of each well in the Plate.
 
         Parameters:
@@ -718,14 +724,17 @@ class Plate():
             for that condition. For an excel sheet, it should be from
             a template (https://github.com/palmhjell/ninetysix/templates).
         """
+        plate = self.copy()
+        
         # Check that everything passes, return type.
         annotation_type = check_annotations(self, annotations)
 
         if annotation_type == dict:
             # Unpack dictionary and assign
             for column in annotations.keys():
+
                 working_annotations = well_regex(annotations[column],
-                                                 padded=self.zero_padding)
+                                                 padded=plate.zero_padding)
 
                 # Check for default
                 default = None
@@ -736,13 +745,13 @@ class Plate():
 
                 # Make new columns
                 key = ('annotations', column)
-                self.mi_df[key] = self.mi_df.index.map(working_annotations.get)
-                self.mi_df[key] = self.mi_df[key].replace({None: default})
+                plate.mi_df[key] = plate.mi_df.index.map(working_annotations.get)
+                plate.mi_df[key] = plate.mi_df[key].replace({None: default})
 
             new_annotations = [col for col in annotations.keys()
-                               if col not in self.annotations]
+                               if col not in plate.annotations]
             
-            self.annotations = [*self.annotations, *new_annotations]
+            plate.annotations = [*plate.annotations, *new_annotations]
 
         elif annotation_type == 'excel':
 
@@ -775,7 +784,7 @@ class Plate():
             # Add Well column
             wells = [f'{row}{column}'
                      for (row, column) in zip(df_map['row'], df_map['column'])]
-            df_map['well'] = [pad(well, self.zero_padding) for well in wells]
+            df_map['well'] = [pad(well, plate.zero_padding) for well in wells]
 
             # Drop columns that are *entirely* nans
             df_map = df_map.dropna(axis='columns', how='all')
@@ -784,22 +793,22 @@ class Plate():
             df_map = df_map.replace({np.nan: None})
 
             # Standardize case and merge
-            df_map.columns = [self._set_case(col)
+            df_map.columns = [plate._set_case(col)
                              for col in df_map.columns]
 
-            mergers = [self._set_case(col)
+            mergers = [plate._set_case(col)
                       for col in ['well', 'column', 'row']]
 
-            self.df = self.df.merge(df_map, on=mergers)
+            plate.df = plate.df.merge(df_map, on=mergers)
 
             # Update annotations
             new_annotations = [col for col in df_map
                                if col not in mergers
-                               and col not in self.annotations]
-            
-            self.annotations = [*self.annotations, *new_annotations]
+                               and col not in plate.annotations]
+           
+            plate.annotations = [*plate.annotations, *new_annotations]
 
-        return self
+        return plate
 
 
     def normalize(
@@ -853,21 +862,19 @@ class Plate():
             What to add to the new column name to indicate that it has
             been normalized.
         """
+        plate = self.copy()
+
         # Determine how to update the value
         # TODO: does this need a warning for True when type(value) == list?
-        if update_value is None and not isinstance(value, list):
-            update_value = True
-            if isinstance(update_value, str):
-                if update_value not in value:
-                    raise ValueError(
-                        f"Given update value '{update_value}' not found in list of values to be normalized."
-                    )
-            else:
-                update_value = False
+        if isinstance(value, list) and not isinstance(update_value, bool):
+            if update_value not in value:
+                raise ValueError(
+                    f"Given update value '{update_value}' not found in list of values to be normalized."
+                )
 
         # Get value list ready
         if value is None:
-            value = self.value_name
+            value = plate.value_name
         if not isinstance(value, list):
             values = [value]
         else:
@@ -878,11 +885,11 @@ class Plate():
             groupby = [groupby]
 
         for group in groupby:
-            check_df_col(self.df, group, name='groupby')
+            check_df_col(plate.df, group, name='groupby')
 
         # Group or create fake groupby object
-        unique_dfs = (self.df.groupby(groupby) if groupby != [None]
-                      else [(None, self.df.copy())])
+        unique_dfs = (plate.df.groupby(groupby) if groupby != [None]
+                      else [(None, plate.df.copy())])
 
         df_list = []
         # Iterate through each dataframe
@@ -957,18 +964,18 @@ class Plate():
                 df_list.append(sub_df)
 
         # Add new column in correct order
-        mergers = [self._well,
-                    *[elem for elem in groupby if elem is not None]]
-        _df = self.df[mergers].merge(
+        mergers = [plate._well,
+                   *[elem for elem in groupby if elem is not None]]
+        _df = plate.df[mergers].merge(
             pd.concat(df_list), on=mergers
         )
         
-        self.mi_df[('values', norm_string)] = _df[norm_string].values
-        self.df = self._from_midf()
+        plate.mi_df[('values', norm_string)] = _df[norm_string].values
+        plate.df = plate._from_midf()
 
-        # Update self.values list
-        if norm_string not in self.values:
-            self.values = [*self.values[:-2], norm_string, self.value_name]
+        # Update plate.values list
+        if norm_string not in plate.values:
+            plate.values = [*plate.values[:-2], norm_string, plate.value_name]
         
         # Clean up
         if update_value:
@@ -977,9 +984,9 @@ class Plate():
             else:
                 update_string = norm_string
             
-            self.value_name = update_string
-            self.values.remove(update_string)
-            self.values = [*self.values, update_string]
+            plate.value_name = update_string
+            plate.values.remove(update_string)
+            plate.values = [*plate.values, update_string]
 
-        return self
+        return plate
   
