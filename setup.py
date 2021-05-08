@@ -25,6 +25,7 @@ setup(
     description='A general package for tidying, annotating, and analyzing 96-well plate data.',
     long_description=long_description,
     long_description_content_type='text/markdown',
+    url='https://palmhjell.github.io/ninetysix/',
     packages=find_packages(),
     install_requires=[
         'numpy',
