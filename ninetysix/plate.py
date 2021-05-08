@@ -773,10 +773,9 @@ class Plate():
             df_map = df_map.reset_index()
 
             # Add Well column
-            df_map['well'] = pad(
-                df_map['row'] + df_map['column'],
-                self.zero_padding
-            )
+            wells = [f'{row}{column}'
+                     for (row, column) in zip(df_map['row'], df_map['column'])]
+            df_map['well'] = [pad(well, self.zero_padding) for well in wells]
 
             # Drop columns that are *entirely* nans
             df_map = df_map.dropna(axis='columns', how='all')
