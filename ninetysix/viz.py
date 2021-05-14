@@ -38,10 +38,10 @@ def _get_ordered_locs(df):
     return well[0], row[0], column[0]
 
 
-def _parse_data_obj(object):
+def _parse_data_obj(obj):
     """Gets necessary information for 96-well-based plots"""
-    if isinstance(object, pd.DataFrame):
-        df = object.copy()
+    if isinstance(obj, pd.DataFrame):
+        df = obj.copy()
         value_name = df.columns[-1]
 
         # Determine case
@@ -52,9 +52,9 @@ def _parse_data_obj(object):
     # Assume Plate
     else:
         try:
-            df = object.df.copy()
-            value_name = object.value_name
-            case = object._set_case
+            df = obj.df.copy()
+            value_name = obj.value_name
+            case = obj._set_case
         except AttributeError:
             raise ValueError(
                 'Data format not recognized, only pandas.DataFrame and '\
@@ -139,7 +139,8 @@ def aggregate_replicates(df, variable, value, grouping):
 
 
 def plot_scatter(
-    object,
+    obj,
+    variable=None,
     value_name=None,
     color=None,
     layering=None,
@@ -157,10 +158,13 @@ def plot_scatter(
 
     Parameters:
     -----------
-    object: ns.Plate or pd.DataFrame object
+    obj: ns.Plate or pd.DataFrame objectect
         Must contain a DataFrame with columns labeled well, row, column,
-        (case-insensitive) and the final column as the label (can be
+        (case-insensitive) and the final column as the value (can be
         overwritten, see `value_name` kwarg).
+    variable: string, default None
+        If None, `obj` must contain a well column. Otherwise specifies
+        the variable on the x-axis of the scatter chart.
     value_name: string, default None
         Which column in the data contains the y-axis data. Defaults to
         ns.Plate.value_name or pd.DataFrame.columns[-1].
@@ -216,7 +220,7 @@ def plot_scatter(
     if plot_opts is None:
         plot_opts = {}
     # Get data and metadata
-    df, locs, auto_value, case = _parse_data_obj(object)
+    df, locs, auto_value, case = _parse_data_obj(obj)
     if value_name is not None:
         check_df_col(df, value_name, 'value_name')
     else:
@@ -236,6 +240,7 @@ def plot_scatter(
     if color is not None:
         plot_opts['color'] = color
     
+    check_df_col(df, variable, 'variable')
     check_df_col(df, layering, 'layering')
     
     if not isinstance(groupby, list):
@@ -255,12 +260,22 @@ def plot_scatter(
     if ranked:
         secondary_sort.append(case('rank'))
         kdims.append(case('rank'))
-    else:
+    elif variable is None:
+        if locs is None:
+            raise ValueError(
+                'Data object does not contain column related to well. This is '
+                'required if a variable is not specified and ranked is False.'
+            )
         plot_opts['xticks'] = 0
         # Order by well (A1-H12 ordering)
         secondary_sort += [locs[1], locs[2]]
         # kdims = well
         kdims = locs[0]
+    else:
+        kdims = variable
+        secondary_sort.append(variable)
+
+
     
     df = df.sort_values(by=secondary_sort, ascending=True)
 
@@ -356,7 +371,7 @@ def plot_rof(*args, **kwargs):
 
     Parameters:
     -----------
-    object: ns.Plate or pd.DataFrame object
+    object: ns.Plate or pd.DataFrame objectect
         Must contain a DataFrame with columns labeled well, row, column,
         (case-insensitive) and the final column as the label (can be
         overwritten, see `value_name` kwarg).
@@ -418,7 +433,7 @@ def plot_rof(*args, **kwargs):
 
 
 def plot_hm(
-    object,
+    obj,
     value_name=None,
     outline=None,
     exclude_major=False,
@@ -438,7 +453,7 @@ def plot_hm(
 
     Parameters:
     -----------
-    object: ns.Plate or pd.DataFrame object
+    obj: ns.Plate or pd.DataFrame object
         Must contain a DataFrame with columns labeled well, row, column,
         (case-insensitive) and the final column as the label (can be
         overwritten, see `value_name` kwarg).
@@ -508,7 +523,7 @@ def plot_hm(
     if outline_opts is None:
         outline_opts = {}
     # Get data and metadata
-    df, locs, auto_value, case = _parse_data_obj(object)
+    df, locs, auto_value, case = _parse_data_obj(obj)
     if locs is None:
         raise ValueError(
             'DataFrame is missing well, row, and/or column information. '
@@ -657,7 +672,7 @@ def plot_hm(
 
 
 def plot_bar(
-    object,
+    obj,
     variable,
     value_name=None,
     groupby=None,
@@ -680,7 +695,7 @@ def plot_bar(
     
     Parameters:
     -----------
-    object: ns.Plate or pd.DataFrame object
+    obj: ns.Plate or pd.DataFrame object
         If DataFrame and `value = None`, the final column is used as the
         value.
     variable: str
@@ -726,7 +741,7 @@ def plot_bar(
     chart: Holoviews chart
     """
     # Get data and metadata
-    df, locs, auto_value, case = _parse_data_obj(object)
+    df, locs, auto_value, case = _parse_data_obj(obj)
     if value_name is not None:
         check_df_col(df, value_name, 'value_name')
     else:
@@ -845,7 +860,7 @@ def plot_bar(
 
 
 def plot_curve(
-    object,
+    obj,
     variable,
     value_name=None,
     condition=None,
@@ -866,7 +881,7 @@ def plot_curve(
     
     Parameters:
     -----------
-    object: ns.Plate or pd.DataFrame object
+    obj: ns.Plate or pd.DataFrame object
         If DataFrame and `value = None`, the final column is used as the
         value.
     variable: str
@@ -909,7 +924,7 @@ def plot_curve(
     chart: the final Holoviews chart
     """
     # Get data and metadata
-    df, locs, auto_value, case = _parse_data_obj(object)
+    df, locs, auto_value, case = _parse_data_obj(obj)
     if value_name is not None:
         check_df_col(df, value_name, 'value_name')
     else:
