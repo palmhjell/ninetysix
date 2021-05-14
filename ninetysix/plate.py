@@ -501,9 +501,12 @@ class Plate():
                 # Store in dictionary
                 new_dict[(key1, key2)] = series
      
-        # Assign as new mi_df
-        index = ('locations', self._well)
-        self.mi_df = pd.DataFrame(new_dict).set_index(index)
+        # Assign as new mi_df and sort
+        self.mi_df = pd.DataFrame(new_dict)
+        self.mi_df = self.mi_df.sort_values(
+            by=[('locations', loc) for loc in self.locations[1:]]
+        ).reset_index(drop=True)
+        self.mi_df = self.mi_df.set_index(('locations', self._well))
         self.mi_df.index.name = self._well
 
         # Reset dataframe
