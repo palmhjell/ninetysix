@@ -3,4 +3,4 @@ from .viz import Colors
 
 __author__ = 'Patrick Almhjell'
 __email__ = 'palmhjell@caltech.edu'
-__version__ = '0.0.2'
+__version__ = '0.0.3'
