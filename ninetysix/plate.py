@@ -870,7 +870,7 @@ class Plate():
 
         # Determine how to update the value
         # TODO: does this need a warning for True when type(value) == list?
-        if isinstance(value, list) and not isinstance(update_value, bool):
+        if isinstance(value, list) and isinstance(update_value, str):
             if update_value not in value:
                 raise ValueError(
                     f"Given update value '{update_value}' not found in list of values to be normalized."
@@ -896,7 +896,7 @@ class Plate():
                       else [(None, plate.df.copy())])
 
         df_list = []
-        # Iterate through each dataframe
+        # Iterate through each dataframe group
         for name, sub_df in unique_dfs:
             
             sub_df = sub_df.copy()
@@ -964,24 +964,34 @@ class Plate():
 
                 sub_df[norm_string] = sub_df[norm_string] / one_val
 
-                # Store in df_list
-                df_list.append(sub_df)
+            # After adding normalized values, store in df_list
+            df_list.append(sub_df)
 
-        # Add new column in correct order
+        # Merge dataframes from groupby
         mergers = [plate._well,
                    *[elem for elem in groupby if elem is not None]]
-        _df = plate.df[mergers].merge(
+        full_df = plate.df[mergers].merge(
             pd.concat(df_list), on=mergers
         )
         
-        plate.mi_df[('values', norm_string)] = _df[norm_string].values
-        plate.df = plate._from_midf()
+        # Add each new value
+        for value in values:
+            norm_string = f'{prefix}{value}'
+            plate.mi_df[('values', norm_string)] = full_df[norm_string].values
+            
+            # Update plate.values list
+            if norm_string not in plate.values:
+                val_idx = plate.values.index(value)
 
-        # Update plate.values list
-        if norm_string not in plate.values:
-            plate.values = [*plate.values[:-2], norm_string, plate.value_name]
+                # Add norm value to the left of value
+                plate.values = [
+                    *plate.values[:val_idx],
+                    norm_string,
+                    *plate.values[val_idx:]
+                ]
         
         # Clean up
+        plate.df = plate._from_midf()
         if update_value:
             if isinstance(update_value, str):
                 update_string = f'{prefix}{update_value}'
