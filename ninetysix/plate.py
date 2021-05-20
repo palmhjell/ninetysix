@@ -196,7 +196,13 @@ class Plate():
     def __setitem__(self, key, value):
         """Overwritten to set to DataFrame object, as annotation"""
         key = self._set_case(key)
-        self.mi_df[('annotations', key)] = value
+        
+        # Add to df
+        self.df[key] = value
+
+        # Create series for alignment on mi_df and add
+        series = self.df[[self._well, key]].set_index(self._well)
+        self.mi_df[('annotations', key)] = series
         if key not in self.annotations:
             self.annotations = [*self.annotations, key]
 
