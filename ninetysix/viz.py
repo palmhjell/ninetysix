@@ -765,6 +765,8 @@ def plot_bar(
             cmap = 'Category20'
     
     replicates, df = aggregate_replicates(df, variable, value_name, groupby)
+    if f'mean_{value_name}' not in df.columns:
+        df[f'mean_{value_name}'] = df[value_name]
 
     # Sort
     if sort is not None:
