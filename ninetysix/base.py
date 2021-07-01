@@ -6,7 +6,6 @@ These are added to Plate and other classes with default arguments.
 
 import numpy as np
 import pandas as pd
-from .plate import Plate
 from .parsers import _parse_data_obj
 from .util import check_df_col
 
@@ -30,7 +29,7 @@ def normalize(
 
     Parameters:
     -----------
-    obj: ns.Plate or pd.DataFrame objectect
+    obj: ns.Plate or pd.DataFrame object
         If DataFrame and `value = None`, the final column is used as the
         value.
     value: str or list of str, default None
@@ -52,11 +51,11 @@ def normalize(
 
     Examples:
     ---------
-    # 
+    # Normalize a single data column with no arguments
     >>> df = pd.DataFrame({
     ... 'condition': [1, 1, 1, 1, 2, 2, 2, 2],
     ... 'value': [0.98, 1.02, 1.07, 0.95, 0.33, 0.20, 0.25, 0.27]
-    })
+    ... })
     >>> ns.normalize(df)
         condition    value    normalized_value
     0   1            0.98     0.915888
@@ -73,7 +72,7 @@ def normalize(
     ...     df,
     ...     to='condition=1',
     ...     zero='condition=2',
-    )
+    ... )
         condition    value    normalized_value
     0   1            0.98     0.966330
     1   1            1.02     1.020202 
