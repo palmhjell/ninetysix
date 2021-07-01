@@ -2,6 +2,7 @@
 Tools for parsing and regularizing data found in Plate objects.
 """
 
+import pandas as pd
 from itertools import product
 
 
@@ -31,6 +32,58 @@ def _infer_padding(well):
         padded = True
 
     return padded
+
+
+def _get_ordered_locs(df):
+    """Returns location information in 'well', 'row', 'column' order."""
+    well = [val for val in df.columns if val.lower() == 'well']
+    row = [val for val in df.columns if val.lower() == 'row']
+    column = [val for val in df.columns if val.lower() == 'column']
+
+    for loc in (well, row, column):
+        if not loc:
+            raise ValueError(
+                f'Could not find column for "{loc}"'
+            )
+        if len(loc) > 1:
+            raise ValueError(
+                f'Too many columns found: "{loc}"'
+            )
+
+    return well[0], row[0], column[0]
+
+
+def _parse_data_obj(obj):
+    """Gets necessary information for 96-well-based plots"""
+    if isinstance(obj, pd.DataFrame):
+        df = obj.copy()
+        value_name = df.columns[-1]
+
+        # Determine case
+        lowers = [True for val in df.columns if val.lower() == val]
+        caps = [True for val in df.columns if val.capitalize() == val]
+        case = str.lower if lowers > caps else str.capitalize
+
+    # Assume Plate
+    else:
+        try:
+            df = obj.df.copy()
+            value_name = obj.value_name
+            case = obj._set_case
+        except AttributeError:
+            raise ValueError(
+                'Data format not recognized, only pandas.DataFrame and '
+                'ninetysix.Plate objects accepted.'
+            )
+
+    # Get well, row, and column values
+    try:
+        well, row, col = _get_ordered_locs(df)
+        locs = (well, row, col)
+    except ValueError:
+        locs = None
+
+    return df, locs, value_name, case
 
 def pad(well, padded=True):
     """Converts to or from zero-padded column names

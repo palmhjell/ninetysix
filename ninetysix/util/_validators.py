@@ -38,8 +38,8 @@ def check_inputs(Plate):
     well_col = well_cols[0]
     if (Plate.value_name is None) & (well_col == df.columns[-1]):
         raise ValueError(
-            "Your final {message} is assumed to be your value {message},"
-            "but found {message} related to well."
+            f"Your final {message} is assumed to be your value {message},"
+            f"but found {message} related to well."
         )
 
     bad_types = [type(well) for well in df[well_col]

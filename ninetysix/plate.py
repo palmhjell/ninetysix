@@ -10,6 +10,7 @@ rapid analysis and visualization of ninety-six* well plate assays.
 import numpy as np
 import pandas as pd
 
+from .base import normalize
 from .parsers import well_regex, pad, _infer_padding, _infer_casing
 from .util import check_inputs, check_annotations, check_df_col
 from .util._plate_attrs import _set_viz_attrs, _set_pandas_attrs
@@ -836,7 +837,7 @@ class Plate():
     ):
         """Normalizes the value column to give the max a value of 1,
         returning a new column named '[prefix][value]', e.g.,
-        'normalized_value. Accepts different value kwargs and can
+        'normalized_value'. Accepts different value kwargs and can
         explicitly scale from 0 to 1 'zero=True'. Alternatively, scales
         relative to a specific assignment of a condition column, i.e. to 'Standard' within the condition 'Controls' can be set to a value
         of 1 via the kwarg `to='Controls=Standard'`. Additionally can
@@ -884,7 +885,6 @@ class Plate():
                 raise ValueError(
                     f"Given update value '{update_value}' not found in list of values to be normalized."
                 )
-
         # Get value list ready
         if value is None:
             value = plate.value_name
@@ -893,94 +893,14 @@ class Plate():
         else:
             values = value
 
-        # Set up groups
-        if not isinstance(groupby, (tuple, list)):
-            groupby = [groupby]
-
-        for group in groupby:
-            check_df_col(plate.df, group, name='groupby')
-
-        # Group or create fake groupby object
-        unique_dfs = (plate.df.groupby(groupby) if groupby != [None]
-                      else [(None, plate.df.copy())])
-
-        df_list = []
-        # Iterate through each dataframe group
-        for name, sub_df in unique_dfs:
-            
-            sub_df = sub_df.copy()
-            
-            # Iterate through each value
-            for value in values:
-                check_df_col(sub_df, value, name='value')
-
-                norm_string = f'{prefix}{value}'
-
-                # Set the zero val
-                if zero == True:
-                    zero_val = sub_df[value].min()
-                elif isinstance(zero, str):
-                    split = zero.split('=')
-                    if len(split) != 2:
-                        raise ValueError(
-                            f"'zero' value specified incorrectly, must be of the form 'column_name=value_name'."
-                        )
-
-                    col, val = split
-
-                    # Check that col in columns
-                    check_df_col(sub_df, col, name='column')
-
-                    # Check that the given value is found in the column
-                    if val not in [str(i) for i in sub_df[col]]:
-                        raise ValueError(
-                            f"The value '{val}' is not a value in the column '{col}'."
-                        )
-                    subset = [val == str(i) for i in sub_df[col]]
-                    zero_val = sub_df[subset][value].mean()
-                elif zero is None or zero == False:
-                    zero_val = 0
-                else:
-                    raise TypeError(
-                        f"Type of 'zero' argument is incorrectly specified. Must be bool or string.")
-
-                sub_df[norm_string] = sub_df[value] - zero_val
-
-                # Set the one val
-                if to is None:
-                    one_val = sub_df[norm_string].max()
-                elif isinstance(to, str):
-                    split = to.split('=')
-                    if len(split) != 2:
-                        raise ValueError(
-                            f"'to' value specified incorrectly, must be of the form 'column_name=value_name'."
-                        )
-                    
-                    col, val = split
-                    
-                    # Check that col in columns
-                    check_df_col(sub_df, col, name='column')
-
-                    # Check that the given value is found in the column
-                    if val not in [str(i) for i in sub_df[col]]:
-                        raise ValueError(
-                            f"The value '{val}' is not a value in the column '{col}'."
-                        )
-                    subset = [val == str(i) for i in sub_df[col]]
-                    one_val = sub_df[subset][norm_string].mean()
-                else:
-                    raise TypeError(f"Type of 'to' argument is incorrectly specified. Must be bool or string.")
-
-                sub_df[norm_string] = sub_df[norm_string] / one_val
-
-            # After adding normalized values, store in df_list
-            df_list.append(sub_df)
-
-        # Merge dataframes from groupby
-        mergers = [plate._well,
-                   *[elem for elem in groupby if elem is not None]]
-        full_df = plate.df[mergers].merge(
-            pd.concat(df_list), on=mergers
+        # Normalize data with ns.base.normalize
+        full_df = normalize(
+            obj=plate,
+            value=value,
+            to=to,
+            zero=zero,
+            groupby=groupby,
+            prefix=prefix,
         )
         
         # Add each new value

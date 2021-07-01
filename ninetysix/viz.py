@@ -10,6 +10,7 @@ hv.extension('bokeh')
 import bokeh.palettes
 
 from .util import check_df_col
+from .parsers import _parse_data_obj
 
 class Colors():
     """Mild color palette."""
@@ -17,58 +18,6 @@ class Colors():
     green = '#8DED81'
     orange = '#E18409'
     gray = '#DEDEDE'
-
-
-def _get_ordered_locs(df):
-    """Returns location information in 'well', 'row', 'column' order."""
-    well = [val for val in df.columns if val.lower() == 'well']
-    row = [val for val in df.columns if val.lower() == 'row']
-    column = [val for val in df.columns if val.lower() == 'column']
-
-    for loc in (well, row, column):
-        if not loc:
-            raise ValueError(
-                f'Could not find column for "{loc}"'
-            )
-        if len(loc) > 1:
-            raise ValueError(
-                f'Too many columns found: "{loc}"'
-            )
-    
-    return well[0], row[0], column[0]
-
-
-def _parse_data_obj(obj):
-    """Gets necessary information for 96-well-based plots"""
-    if isinstance(obj, pd.DataFrame):
-        df = obj.copy()
-        value_name = df.columns[-1]
-
-        # Determine case
-        lowers = [True for val in df.columns if val.lower() == val]
-        caps = [True for val in df.columns if val.capitalize() == val]
-        case = str.lower if lowers > caps else str.capitalize
-
-    # Assume Plate
-    else:
-        try:
-            df = obj.df.copy()
-            value_name = obj.value_name
-            case = obj._set_case
-        except AttributeError:
-            raise ValueError(
-                'Data format not recognized, only pandas.DataFrame and '\
-                'ninetysix.Plate objects accepted.'
-            )
-
-    # Get well, row, and column values
-    try:
-        well, row, col = _get_ordered_locs(df)
-        locs = (well, row, col)
-    except ValueError:
-        locs = None
-
-    return df, locs, value_name, case
 
 
 def _center_colormap(data, cmap_center):
@@ -371,7 +320,7 @@ def plot_rof(*args, **kwargs):
 
     Parameters:
     -----------
-    object: ns.Plate or pd.DataFrame objectect
+    obj: ns.Plate or pd.DataFrame objectect
         Must contain a DataFrame with columns labeled well, row, column,
         (case-insensitive) and the final column as the label (can be
         overwritten, see `value_name` kwarg).
