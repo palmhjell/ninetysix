@@ -902,12 +902,15 @@ class Plate():
             groupby=groupby,
             prefix=prefix,
         )
+
+        # Merge to add the new column to plate.df in the correct order
+        merge_df = plate.df.merge(full_df)
         
         # Add each new value
         for value in values:
             norm_string = f'{prefix}{value}'
-            plate.mi_df[('values', norm_string)] = full_df[norm_string].values
-            
+            plate.mi_df[('values', norm_string)] = merge_df[norm_string].values
+
             # Update plate.values list
             if norm_string not in plate.values:
                 val_idx = plate.values.index(value)
@@ -918,7 +921,7 @@ class Plate():
                     norm_string,
                     *plate.values[val_idx:]
                 ]
-        
+
         # Clean up
         plate.df = plate._from_midf()
         if update_value:

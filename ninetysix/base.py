@@ -53,8 +53,8 @@ def normalize(
     ---------
     # Normalize a single data column with no arguments
     >>> df = pd.DataFrame({
-    ... 'condition': [1, 1, 1, 1, 2, 2, 2, 2],
-    ... 'value': [0.98, 1.02, 1.07, 0.95, 0.33, 0.20, 0.25, 0.27]
+    ...     'condition': [1, 1, 1, 1, 2, 2, 2, 2],
+    ...     'value': [0.98, 1.02, 1.07, 0.95, 0.33, 0.20, 0.25, 0.27]
     ... })
     >>> ns.normalize(df)
         condition    value    normalized_value
