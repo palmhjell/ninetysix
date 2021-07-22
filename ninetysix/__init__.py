@@ -1,5 +1,5 @@
 from .plate import Plate
-from .base import normalize
+from .base import normalize, aggregate_replicates
 from .viz import Colors
 
 __author__ = 'Patrick Almhjell'

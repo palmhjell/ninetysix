@@ -11,6 +11,7 @@ import bokeh.palettes
 
 from .util import check_df_col
 from .parsers import _parse_data_obj
+from .base import aggregate_replicates
 
 class Colors():
     """Mild color palette."""
@@ -33,58 +34,6 @@ def _center_colormap(data, cmap_center):
     dist += dist / 100
 
     return list(np.linspace(cmap_center-dist, cmap_center+dist, 257))
-
-
-def aggregate_replicates(df, variable, value, grouping):
-    """Checks for the presence of replicates in the values of a dataset,
-    given some experimental conditions. Returns True if the standard
-    deviation of the values of each group (if more than one exists) is
-    greater than 0, indicating that replicates were performed under the
-    given criteria.
-    
-    Parameters:
-    -----------
-    df: pandas DataFrame in tidy format
-        The dataset to be checked for replicates.
-    variable: string
-        Name of column of data frame for the independent variable,
-        indicating a specific experimental condition.
-    value: string
-        Name of column of data frame for the dependent variable,
-        indicating an experimental observation.
-    grouping: list of strings
-        Column name or list of column names that indicates how the
-        data set should be split.
-    
-    Returns:
-    --------
-    replicates: bool
-        True if replicates are present.
-    df_agg: pd.DataFrame
-        The DataFrame containing averaged 'variable' values, if
-        replicates is True. Otherwise returns the original DataFrame.
-        The aggregated data is in a new column
-    """
-    # Unpack the experimental conditions into a single list of arguments
-    if not isinstance(grouping, (list, tuple)):
-        grouping = [grouping]
-    args = [elem for elem in (variable, *grouping) if elem is not None]
-
-    # Get stdev of argument groups
-    grouped = df.groupby(args)[value]
-    group_stdevs = grouped.std().reset_index()
-    group_stdev = group_stdevs[value].mean()
-
-    # Determine if there are replicates (mean > 0)
-    replicates = bool(group_stdev > 0)
-
-    # Average the values and return
-    if replicates:
-        df_mean = grouped.mean().reset_index()
-        df_mean.columns = list(df_mean.columns[:-1]) + ['mean_' + str(value)]
-        df = df.merge(df_mean)
-
-    return replicates, df
 
 
 def plot_scatter(

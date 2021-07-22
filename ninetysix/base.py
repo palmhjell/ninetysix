@@ -1,7 +1,8 @@
 """
 Standard functions for general data.
 
-These are added to Plate and other classes with default arguments.
+Many of these are added to Plate and other classes as methods with
+default arguments.
 """
 
 import numpy as np
@@ -186,3 +187,72 @@ def normalize(
     return_df = pd.concat(df_list)
 
     return return_df
+
+
+def aggregate_replicates(
+    obj,
+    variable,
+    value=None,
+    groupby=None,
+    prefix='mean_',
+):
+    """Checks for the presence of replicates in the values of a dataset,
+    given some experimental conditions. Returns True if the number of
+    rows assigned to the given aggregation columns (variable+groupby)
+    is greater than 1, indicating that replicates were performed.
+    
+    Parameters:
+    -----------
+    obj: ns.Plate or pd.DataFrame object
+        If DataFrame and `value = None`, the final column is used as the
+        value.
+    variable: str
+        Name of column of data frame for the independent variable,
+        indicating a specific experimental condition.
+    value: str or list of str, default None
+        Name of column(s) to normalize. 
+    value: str, default None
+        Name of column of data frame for the dependent variable,
+        indicating an experimental observation. If no argument is given,
+        uses value_name for Plate objects or the right-most column for 
+        DataFrames.
+    groupby: str or list of str, default None
+        Column name or list of column names that indicates how the
+        data set should be split.
+    prefix: str, default 'mean_'
+        The prefix for the new column of aggreagated values, if
+        replicates is True.
+    
+    Returns:
+    --------
+    replicates: bool
+        True if replicates are present.
+    df: pd.DataFrame
+        The DataFrame containing averaged 'variable'+'groupby' values,
+        if replicates is True. Otherwise returns the original DataFrame.
+        The aggregated data is in a new column named '{prefix}{value}'.
+    """
+    # Get data and metadata
+    df, locs, auto_value, case = _parse_data_obj(obj)
+
+    # Get value list ready
+    if value is None:
+        value = auto_value
+    
+    # Unpack the experimental conditions into a single list of arguments
+    if not isinstance(groupby, (list, tuple)):
+        grouping = [groupby]
+    args = [elem for elem in (variable, *grouping) if elem is not None]
+
+    # Get row counts to determine if there are replicates
+    grouped = df.groupby(args)[value]
+    counts = grouped.count()
+    replicates = bool([True for count in counts if count > 1])
+
+    # Average the values and return
+    if replicates:
+        df_mean = grouped.mean().reset_index()
+        df_mean.columns = list(df_mean.columns[:-1]) + [f'{prefix}{value}']
+        df = df.merge(df_mean)
+
+    return replicates, df
