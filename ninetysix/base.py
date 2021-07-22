@@ -191,7 +191,7 @@ def normalize(
 
 def aggregate_replicates(
     obj,
-    variable,
+    variable=None,
     value=None,
     groupby=None,
     prefix='mean_',
@@ -206,7 +206,7 @@ def aggregate_replicates(
     obj: ns.Plate or pd.DataFrame object
         If DataFrame and `value = None`, the final column is used as the
         value.
-    variable: str
+    variable: str, default None
         Name of column of data frame for the independent variable,
         indicating a specific experimental condition.
     value: str or list of str, default None
@@ -231,6 +231,60 @@ def aggregate_replicates(
         The DataFrame containing averaged 'variable'+'groupby' values,
         if replicates is True. Otherwise returns the original DataFrame.
         The aggregated data is in a new column named '{prefix}{value}'.
+
+    Examples:
+    ---------
+    # Try to aggregate with 8 different variables (just ID)
+    # returns False, input df
+    >>> df = pd.DataFrame({
+    ...     'id': [1, 2, 3, 4, 5, 6, 7, 8],
+    ...     'condition': [1, 1, 1, 1, 2, 2, 2, 2],
+    ...     'value': [0.98, 1.02, 1.07, 0.95, 0.33, 0.20, 0.25, 0.27]
+    ... })
+    >>> ns.aggregate_replicates(df, variable='id')
+    (False,
+        id      condition    value
+    0   1       1            0.98
+    1   2       1            1.02
+    2   3       1            1.07
+    3   4       1            0.95
+    4   5       2            0.33
+    5   6       2            0.20
+    6   7       2            0.25
+    7   8       2            0.27)
+
+    # Aggreagte on 'condition', which contains two groups
+    # returns True, df iwth aggregated column
+    >>> ns.aggregate_replicates(df, variable='condition')
+    (True,
+        id      condition    value    mean_value
+    0   1       1            0.98     1.0050
+    1   2       1            1.02     1.0050
+    2   3       1            1.07     1.0050
+    3   4       1            0.95     1.0050
+    4   5       2            0.33     0.2625
+    5   6       2            0.20     0.2625
+    6   7       2            0.25     0.2625
+    7   8       2            0.27     0.2625
+
+    # Aggregate on two groups, just passing groupby
+    # returns True, aggregated df
+    >>> df = pd.DataFrame({
+    ...     'condition_1': [1, 1, 1, 1, 2, 2, 2, 2],
+    ...     'condition_2': [True, True, False, False]*2,
+    ...     'value': [0.98, 1.02, 1.07, 0.95, 0.33, 0.20, 0.25, 0.27]
+    ... })
+    >>> ns.aggregate_replicates(df, groupby='condition')
+    (True,
+        condition_1 condition_2    value    mean_value
+    1   1           True           1.02     1.000
+    0   1           True           0.98     1.000
+    2   1           False          1.07     1.010
+    3   1           False          0.95     1.0010
+    4   2           True           0.33     0.265
+    5   2           True           0.20     0.265
+    6   2           False          0.25     0.260
+    7   2           False          0.27     0.260
     """
     # Get data and metadata
     df, locs, auto_value, case = _parse_data_obj(obj)
@@ -241,8 +295,8 @@ def aggregate_replicates(
     
     # Unpack the experimental conditions into a single list of arguments
     if not isinstance(groupby, (list, tuple)):
-        grouping = [groupby]
-    args = [elem for elem in (variable, *grouping) if elem is not None]
+        groupby = [groupby]
+    args = [elem for elem in (variable, *groupby) if elem is not None]
 
     # Get row counts to determine if there are replicates
     grouped = df.groupby(args)[value]
