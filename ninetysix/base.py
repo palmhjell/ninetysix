@@ -274,7 +274,10 @@ def aggregate_replicates(
     ...     'condition_2': [True, True, False, False]*2,
     ...     'value': [0.98, 1.02, 1.07, 0.95, 0.33, 0.20, 0.25, 0.27]
     ... })
-    >>> ns.aggregate_replicates(df, groupby='condition')
+    >>> ns.aggregate_replicates(
+    ...     df,
+    ...     groupby=['condition_1', 'condition_2]
+    ... )
     (True,
         condition_1 condition_2    value    mean_value
     1   1           True           1.02     1.000
