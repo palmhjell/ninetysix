@@ -1,6 +1,19 @@
+#!/bin/bash
+
+# If there are no arguments given
+if [ "$#" -eq "0" ]
+then
+    # Iterate through all notebooks
+    notebooks="*.ipynb"
+else
+    # Iterate only through arguments
+    notebooks="$@"
+fi
+
 path=../docs/
-for nb in *.ipynb
+for nb in $notebooks
 do
+    # Pretty printing:
     # Get length of upper and lower ### set
     N=$((${#nb}+25))
     head -c $N < /dev/zero | tr '\0' '#'
