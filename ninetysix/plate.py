@@ -169,12 +169,6 @@ class Plate():
         self.zero_padding = zero_padding
         self.case = case
 
-        # Annotate
-        if annotate is not None:
-            # Cannot reassign self in init, so need to be clever
-            self.mi_df = self.annotate_wells(annotate).mi_df
-            self.column_dict = self.annotate_wells(annotate).column_dict
-
         # Try to add pandas_attrs
         self._pandas_attrs = pandas_attrs
         if self._pandas_attrs:
@@ -182,6 +176,12 @@ class Plate():
                 _set_pandas_attrs(self)
             except ImportError:
                 self._pandas_attrs = False
+
+        # Annotate
+        if annotate is not None:
+            # Cannot reassign self in init, so need to be clever
+            self.mi_df = self.annotate_wells(annotate).mi_df
+            self.column_dict = self.annotate_wells(annotate).column_dict
 
         # Set plotting attributes directly as methods
         _set_viz_attrs(self)
