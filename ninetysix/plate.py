@@ -149,14 +149,6 @@ class Plate():
         # Get information and regularize the dataframe
         self.df, self._well, self._row, self._col = self._generate_df()
 
-        # Try to add pandas_attrs
-        self._pandas_attrs = pandas_attrs
-        if self._pandas_attrs:
-            try:
-                _set_pandas_attrs(self)
-            except ImportError:
-                self._pandas_attrs = 'Failed due to import error'
-
         # Add high-level attributes
         self._locations = [self._well, self._row, self._col]
         self._annotations = [
@@ -182,6 +174,14 @@ class Plate():
             # Cannot reassign self in init, so need to be clever
             self.mi_df = self.annotate_wells(annotate).mi_df
             self.column_dict = self.annotate_wells(annotate).column_dict
+
+        # Try to add pandas_attrs
+        self._pandas_attrs = pandas_attrs
+        if self._pandas_attrs:
+            try:
+                _set_pandas_attrs(self)
+            except ImportError:
+                self._pandas_attrs = False
 
         # Set plotting attributes directly as methods
         _set_viz_attrs(self)
@@ -523,6 +523,10 @@ class Plate():
         self._locations = self.column_dict['locations']
         self._annotations = self.column_dict['annotations']
         self._values = self.column_dict['values']
+
+        # Update the pandas attrs
+        if self._pandas_attrs:
+            _set_pandas_attrs(self)
 
 ###########################
 # DataFrame construction
